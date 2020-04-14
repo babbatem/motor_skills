@@ -10,7 +10,7 @@ class MjJacoEnv(object):
     def __init__(self, vis=False):
         super(MjJacoEnv, self).__init__()
         parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
-        self.fname = parent_dir_path + '/jaco/jaco.xml'
+        self.fname = parent_dir_path + '/assets/jaco/jaco.xml'
         self.model = load_model_from_path(self.fname)
         self.sim = MjSim(self.model)
         self.viewer = MjViewer(self.sim)

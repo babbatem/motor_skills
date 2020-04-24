@@ -16,3 +16,6 @@ class MjJacoDoor(MjJacoEnv):
         self.sim = MjSim(self.model)
         self.viewer = MjViewer(self.sim)
         self.vis=vis
+
+    def move_door(self):
+        print(len(self.sim.data.body_xpos))

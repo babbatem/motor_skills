@@ -1,0 +1,6 @@
+<asset>
+  <texture type="cube" name="wood" file="../door/wood.png" />
+  <texture type="cube" name="foil" file="../door/silverRaw.png" />
+  <material name="MatFoil" texture="foil" specular="1" shininess="0.3" rgba="0.9 0.9 0.9 1" />
+  <material name="MatWood" texture="wood" specular="0.4" shininess="0.1" />
+</asset>

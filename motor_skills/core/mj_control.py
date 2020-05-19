@@ -146,37 +146,3 @@ def quat_to_scipy(q):
 def quat_to_mj(q):
     """ scalar first, [w,x,y,z]"""
     return [q[-1], q[0], q[1], q[2]]
-
-def transform_jacobian(jac, body, sim):
-    """
-    converts jacp (or jacp_dot) in global frame to body frame
-    jacp: np.ndarray (3,n)
-    body: integer
-    sim: MjSim
-    returns: R_0^T J
-
-    TODO: rotation component of Jacobian, too.
-    """
-    x = sim.data.body_xpos[body]
-    quat = sim.data.body_xquat[body]
-    r = R.from_quat(quat_to_scipy(quat))
-    return np.matmul(r.as_matrix().T, jac)
-
-def compute_jdot(jac, body, sim):
-    """
-    compute time derivative of jac of body (in global frame)
-    assumes: all joints are revolute
-    jac: np.ndarray (3,n)
-    body: integer
-    sim: MjSim
-    returns: jdot
-
-    TODO: rotation component of Jacobian, too.
-    TODO: finish this
-    """
-    Jdot_pos = []
-    Jdot_rot = []
-    for i in range(len(sim.data.qpos)):
-        w_prev = -1 # omega_i=qdot_i * zi−1
-        z_i = -1# rotation axis in global frame
-        Jdot_pos_i = np.cross(w_prev, z_i)

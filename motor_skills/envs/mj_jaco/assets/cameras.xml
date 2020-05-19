@@ -1,0 +1,38 @@
+<mujoco model="cams">
+    <body name="cam_0_body" pos="1.0 0 1.00" euler="0 0.753 1.57">
+      <camera name="cam_0" pos="0.0 0 0" fovy="60"></camera>
+      <body name="testx0" pos="0.1 0 0">
+        <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
+      </body>
+      <body name="testy0" pos="0 0.1 0">
+        <geom size="0.01 0.1 0.01" type="box" rgba="0 1 0 1"/>
+      </body>
+      <body name="testz0" pos="0.0 0 0.1">
+        <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
+      </body>
+    </body>
+    <body name="cam_1_body" pos="0.0 -1 1.00" euler="0.753 0.0 0">
+      <camera name="cam_1" pos="0.0 0 0" fovy="60"></camera>
+      <body name="testx1" pos="0.1 0 0">
+        <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
+      </body>
+      <body name="testy1" pos="0 0.1 0">
+        <geom size="0.01 0.1 0.01" type="box" rgba="0 1 0 1"/>
+      </body>
+      <body name="testz1" pos="0.0 0 0.1">
+        <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
+      </body>
+    </body>
+    <body name="cam_2_body" pos="-1.0 0 1.00" euler="0 -0.753 1.57">
+      <camera name="cam_2" pos="0.0 0 0" fovy="60"></camera>
+      <body name="testx2" pos="0.1 0 0">
+        <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
+      </body>
+      <body name="testy2" pos="0 0.1 0">
+        <geom size="0.01 0.1 0.01" type="box" rgba="0 1 0 1"/>
+      </body>
+      <body name="testz2" pos="0.0 0 0.1">
+        <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
+      </body>
+    </body>
+</mujoco>

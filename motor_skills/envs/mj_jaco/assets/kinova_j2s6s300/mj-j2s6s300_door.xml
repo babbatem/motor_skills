@@ -75,6 +75,7 @@
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_1" pos="0 0 0" axis="0 0 1" limited="true" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
+                                        <site name="sensor_site_1" rgba="1 0 0 1" size="0.01 0.01 0.01" pos="0.03 0 0"/>
                                     </body>
                                 </body>
                                 <body name="j2s6s300_link_finger_2"  pos="0.02226 -0.02707 -0.11482" quat="0.659653 -0.37146 0.601679 -0.254671">
@@ -85,6 +86,7 @@
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_2" pos="0 0 0" axis="0 0 1" limited="true" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
+                                        <site name="sensor_site_2" rgba="1 0 0 1" size="0.01 0.01 0.01" pos="0.03 0 0"/>
                                     </body>
                                 </body>
                                 <body name="j2s6s300_link_finger_3"  pos="-0.02226 -0.02707 -0.11482" quat="0.601679 -0.254671 0.659653 -0.37146">
@@ -95,6 +97,7 @@
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_3" pos="0 0 0" axis="0 0 1" limited="true" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
+                                        <site name="sensor_site_3" rgba="1 0 0 1" size="0.01 0.01 0.01" pos="0.03 0 0"/>
                                     </body>
                                 </body>
                             </body>
@@ -121,4 +124,9 @@
       <motor joint='j2s6s300_joint_finger_3' 	    name='j2s6s300_joint_finger_3' 	    />
   		<motor joint='j2s6s300_joint_finger_tip_3' 	name='j2s6s300_joint_finger_tip_3'  />
   	</actuator>
+    <sensor>
+        <touch name="finger_tip_sensor_1" site="sensor_site_1"/>
+        <touch name="finger_tip_sensor_2" site="sensor_site_2"/>
+        <touch name="finger_tip_sensor_3" site="sensor_site_3"/>
+    </sensor>
   </mujoco>

@@ -1,4 +1,20 @@
 from distutils.core import setup
+from gym.envs.registration import register
+
+register(
+    id='KukaDrawer-v0',
+    entry_point='kuka_gym.envs:KukaDrawerGymEnv'
+)
+
+register(
+    id='KukaCabinet-v0',
+    entry_point='kuka_gym.envs:KukaCabinetGymEnv'
+)
+
+register(
+    id='KukaDynamic-v0',
+    entry_point='kuka_gym.envs:KukaDynamicGymEnv'
+)
 
 setup(
     name='motor_skills',

@@ -14,11 +14,11 @@ class MjJacoDoor(gym.Env):
 
     def __init__(self, vis=False, n_steps=int(1000)):
         parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
+        self.vis=vis
         self.fname = parent_dir_path + '/assets/kinova_j2s6s300/mj-j2s6s300_door.xml'
         self.model = load_model_from_path(self.fname)
         self.sim = MjSim(self.model)
-        self.viewer = MjViewer(self.sim)
-        self.vis=vis
+        self.viewer = MjViewer(self.sim) if self.vis else None
 
         a_low = np.full(6, -float('inf'))
         a_high = np.full(6, float('inf'))
@@ -37,6 +37,10 @@ class MjJacoDoor(gym.Env):
         self.sim.data.qpos[:6]=self.start_poses[idx]
         self.sim.step()
 
+    def reset(self):
+        self.elapsed_steps=0
+        obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
+        return obs
 
     def step(self, action):
         for i in range(len(action)):
@@ -50,8 +54,9 @@ class MjJacoDoor(gym.Env):
 
         info={'goal_achieved': reward}
 
-        done = self.sim.data.time == self.n_steps - 1
+        done = self.elapsed_steps == self.n_steps - 1
 
         obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
 
+        self.elapsed_steps+=1
         return obs, reward, done, info

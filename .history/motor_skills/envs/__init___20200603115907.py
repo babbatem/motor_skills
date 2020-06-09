@@ -5,4 +5,4 @@ register(
     entry_point='motor_skills.envs.mj_jaco:MjJacoDoor'
 )
 
-print('registered')
+print('done')

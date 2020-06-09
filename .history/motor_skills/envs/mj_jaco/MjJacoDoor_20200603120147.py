@@ -44,6 +44,6 @@ class MjJacoDoor(gym.Env):
 
         done = self.sim.data.time == self.n_steps - 1
 
-        obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
+        obs = np.concatenate(self.sim.data.qpos, self.sim.data.sensordata)
 
         return obs, reward, done, info

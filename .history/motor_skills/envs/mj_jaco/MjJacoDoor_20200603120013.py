@@ -23,9 +23,10 @@ class MjJacoDoor(gym.Env):
         a_high = np.full(6, float('inf'))
         self.action_space = gym.spaces.Box(a_low,a_high)
 
-        obs_space = self.model.nq + self.model.nsensordata
-        o_low = np.full(obs_space, -float('inf'))
-        o_high = np.full(obs_space, float('inf'))
+        print(self.model.nsensor)
+        print(self.model.nsensordata)
+        o_low = np.full(8, -float('inf'))
+        o_high = np.full(8, float('inf'))
         self.observation_space=gym.spaces.Box(o_low,o_high)
         self.env=self
         self.n_steps = n_steps
@@ -44,6 +45,4 @@ class MjJacoDoor(gym.Env):
 
         done = self.sim.data.time == self.n_steps - 1
 
-        obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
-
-        return obs, reward, done, info
+        return self.sim.data.qpos, reward, done, info

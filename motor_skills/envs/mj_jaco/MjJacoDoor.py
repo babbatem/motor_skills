@@ -1,6 +1,7 @@
 import time
 import copy
 import pathlib
+import pickle
 import gym
 import numpy as np
 from mujoco_py import load_model_from_path, MjSim, MjViewer
@@ -29,6 +30,13 @@ class MjJacoDoor(gym.Env):
         self.observation_space=gym.spaces.Box(o_low,o_high)
         self.env=self
         self.n_steps = n_steps
+
+        start_pose_file = open(parent_dir_path + "/assets/MjJacoDoorGrasps", 'rb')
+        self.start_poses = pickle.load(start_pose_file)
+        idx = np.random.randint(len(self.start_poses))
+        self.sim.data.qpos[:6]=self.start_poses[idx]
+        self.sim.step()
+
 
     def step(self, action):
         for i in range(len(action)):

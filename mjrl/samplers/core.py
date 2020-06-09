@@ -8,8 +8,6 @@ import multiprocessing as mp
 import time as timer
 logging.disable(logging.CRITICAL)
 
-import pybullet as p
-
 
 # Single core rollout to sample trajectories
 # =======================================================

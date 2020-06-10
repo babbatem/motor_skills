@@ -42,6 +42,8 @@ class MjJacoDoor(gym.Env):
         self.sim.step()
 
         # TODO: close the gripper here
+        # a heuristic strategy: close fingers until the first link is in contact.
+        # then close finger tips in the same fashion
 
         # reset the object
         self.sim.data.qpos[-1]=0.0
@@ -54,6 +56,9 @@ class MjJacoDoor(gym.Env):
     def step(self, action):
 
         # TODO: failure predicate here
+        # if contact is lost for some number of timesteps, exit and return -1
+        # this might lead to a policy that doesn't do anything if reward is too sparse
+        # we ought to give this some more thought. 
 
         for i in range(len(action)):
             self.sim.data.ctrl[i]=action[i]+self.sim.data.qfrc_bias[i]

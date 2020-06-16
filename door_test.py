@@ -18,11 +18,11 @@ if __name__ == '__main__':
         # q = [0]*9
         # qd = [0]*9
         # qdd = [0]*9
-        # action = pd(qdd,qd,q,env.sim)
+        # action = mjc.pd(qdd,qd,q,env.sim)
 
         # q=None
         # qd[0] += 1.0
-        # action = pd(qdd,qd,q,env.sim)
+        # action = mjc.pd(qdd,qd,q,env.sim)
 
         # print('---')
         # print('goal: ', test_x)

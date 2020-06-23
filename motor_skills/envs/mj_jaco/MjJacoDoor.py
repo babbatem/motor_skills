@@ -62,19 +62,21 @@ class MjJacoDoor(gym.Env):
         print(self.sim.data.qpos)
         obj_type = 3 # 3 for joint, 1 for body
         joint_idxs = np.array([])
+        offset = np.zeros(12)
         for i in range(1,4):
             base_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_" + str(i))
             tip_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_tip_" + str(i))
-            offset = np.zeros(12)
             offset[base_idx] = 2
             offset[tip_idx] = 2
             new_pos = self.sim.data.qpos[:12] + offset
-            for t in range(100):
-                self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
-                self.sim.step()
-                self.sim.forward()
-                self.viewer.render()
-                print(self.sim.data.sensordata)
+
+        for t in range(5000):
+            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
+            self.sim.forward()
+            self.sim.step()
+            self.viewer.render()
+            print(self.sim.data.sensordata)
+
         # reset the object
         self.sim.data.qpos[-1]=0.0
         self.sim.data.qpos[-2]=0.0
@@ -88,7 +90,7 @@ class MjJacoDoor(gym.Env):
         # TODO: failure predicate here
         # if contact is lost for some number of timesteps, exit and return -1
         # this might lead to a policy that doesn't do anything if reward is too sparse
-        # we ought to give this some more thought. 
+        # we ought to give this some more thought.
 
         for i in range(len(action)):
             self.sim.data.ctrl[i]=action[i]+self.sim.data.qfrc_bias[i]

@@ -8,6 +8,7 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 from motor_skills.envs.mj_jaco import MjJacoEnv
 import motor_skills.core.mj_control as mjc
 from mujoco_py import cymj
+from scipy.spatial.transform import Rotation as R
 
 THRESHOLD = np.pi / 2
 
@@ -49,17 +50,29 @@ class MjJacoDoor(gym.Env):
         # then close finger tips in the same fashion
 
         ee_index = 6
-        ee_xpos_goal = copy.deepcopy(self.sim.data.body_xpos[ee_index])
-        ee_xpos_goal[1] += 0.2
-        ee_xpos_goal[2] -= 0.005
+        # old = self.sim.data.body_xpos[ee_index].copy()
+        # qpos_offset = np.zeros(12)
+        # qpos_offset[:6] = [-0.123224540, .121126694, .129906782, -0.0438253357, -0.00798207077, -0.0000539686959]
+        # qpos_goal = self.sim.data.qpos[:12] + qpos_offset
+        # global_goal = np.zeros(6)
+        ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[ee_index]
+        ee_frame_goal = np.append(ee_frame_goal, 1)
+        rot_mat = R.from_quat(self.sim.data.body_xquat)
+        trans_mat = np.zeros([4,4])
+        trans_mat[:3,:3] = rot_mat.as_dcm()[ee_index]
+        trans_mat[3,:3] = 0
+        trans_mat[3,3] = 1
+        trans_mat[:3,3] = self.sim.data.body_xpos
+        world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
+        # print(global_goal)
 
         for t in range(1000):
-            self.sim.data.ctrl[:] = mjc.ee_regulation(ee_xpos_goal, self.sim, ee_index, kp=None, kv=None, ndof=12)
+            self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, ee_index, kp=None, kv=None, ndof=12)
             self.sim.step()
             self.sim.forward()
             self.viewer.render()
 
-        print(self.sim.data.qpos)
+        # print('Diff: ' + str(self.sim.data.body_xpos[ee_index] - old))
         obj_type = 3 # 3 for joint, 1 for body
         joint_idxs = np.array([])
         offset = np.zeros(12)
@@ -70,12 +83,19 @@ class MjJacoDoor(gym.Env):
             offset[tip_idx] = 2
             new_pos = self.sim.data.qpos[:12] + offset
 
+        self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
+
         for t in range(5000):
-            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
-            print(self.sim.data.sensordata)
+            touched = np.where(self.sim.data.sensordata != 0.0)
+            if len(touched) == len(self.sim.data.sensordata):
+                break
+            current_pos = self.sim.data.qpos
+            for touch_point in touched:
+                new_pos[touch_point] = current_pos[touch_point]
+            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
 
         # reset the object
         self.sim.data.qpos[-1]=0.0

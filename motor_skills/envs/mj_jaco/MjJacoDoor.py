@@ -49,32 +49,34 @@ class MjJacoDoor(gym.Env):
         # a heuristic strategy: close fingers until the first link is in contact.
         # then close finger tips in the same fashion
 
-        ee_index = 6
+        # ee_index = 6
         # old = self.sim.data.body_xpos[ee_index].copy()
         # qpos_offset = np.zeros(12)
         # qpos_offset[:6] = [-0.123224540, .121126694, .129906782, -0.0438253357, -0.00798207077, -0.0000539686959]
         # qpos_goal = self.sim.data.qpos[:12] + qpos_offset
         # global_goal = np.zeros(6)
-        ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[ee_index]
+        obj_type = 3 # 3 for joint, 1 for body
+        body_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_link_6")
+        ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[body_idx]
         ee_frame_goal = np.append(ee_frame_goal, 1)
+        # print(self.sim.data.body_xquat[body_idx].shape)
         rot_mat = R.from_quat(self.sim.data.body_xquat)
         trans_mat = np.zeros([4,4])
-        trans_mat[:3,:3] = rot_mat.as_dcm()[ee_index]
+        trans_mat[:3,:3] = rot_mat.as_dcm()[body_idx]
         trans_mat[3,:3] = 0
         trans_mat[3,3] = 1
-        trans_mat[:3,3] = self.sim.data.body_xpos
+        trans_mat[:3,3] = self.sim.data.body_xpos[body_idx]
         world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
+        # print(self.sim.data.body_xpos[body_idx])
+        # print(world_goal)
         # print(global_goal)
-
         for t in range(1000):
-            self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, ee_index, kp=None, kv=None, ndof=12)
+            self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, body_idx, kp=None, kv=None, ndof=12)
             self.sim.step()
             self.sim.forward()
             self.viewer.render()
 
         # print('Diff: ' + str(self.sim.data.body_xpos[ee_index] - old))
-        obj_type = 3 # 3 for joint, 1 for body
-        joint_idxs = np.array([])
         offset = np.zeros(12)
         for i in range(1,4):
             base_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_" + str(i))
@@ -86,15 +88,20 @@ class MjJacoDoor(gym.Env):
         self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
 
         for t in range(5000):
+            # print('Goal: ' + str(new_pos))
+            # print('Current: ' + str(self.sim.data.qpos))
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
-            touched = np.where(self.sim.data.sensordata != 0.0)
+            print(self.sim.data.sensordata)
+            touched = np.where(self.sim.data.sensordata[:6] != 0.0)
+            # print(touched)
             if len(touched) == len(self.sim.data.sensordata):
                 break
             current_pos = self.sim.data.qpos
-            for touch_point in touched:
-                new_pos[touch_point] = current_pos[touch_point]
+            print(current_pos)
+            # for touch_point in touched:
+            #     new_pos[touch_point] = current_pos[touch_point]
             self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
 
         # reset the object

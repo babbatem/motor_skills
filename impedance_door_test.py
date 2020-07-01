@@ -1,3 +1,4 @@
+import numpy as np
 import copy
 import motor_skills
 import motor_skills.core.mj_control as mjc
@@ -10,4 +11,7 @@ if __name__ == '__main__':
     env.reset()
 
     for t in range(10000):
-        env.step([0]*6)
+        delta_pos = [0, 0, 0.1]
+        delta_ori = [0,0,0]
+        action=np.concatenate((delta_pos, delta_ori))
+        env.step(action)

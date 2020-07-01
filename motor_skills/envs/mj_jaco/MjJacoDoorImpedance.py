@@ -65,8 +65,26 @@ class MjJacoDoorImpedance(gym.Env):
         # this might lead to a policy that doesn't do anything if reward is too sparse
         # we ought to give this some more thought.
 
-        for i in range(len(action)):
-            self.sim.data.ctrl[i]=action[i]+self.sim.data.qfrc_bias[i]
+        # %% interpret action as target [pos, ori] of gripper
+        policy_step = True
+        self.control_timestep = 1.0 / self.controller.control_freq
+        self.model_timestep = self.sim.model.opt.timestep
+        self.controller.impedance_flag = False
+
+        for i in range(int(self.control_timestep / self.model_timestep)):
+            self._pre_action(action, policy_step)
+            self.sim.step()
+            policy_step = False
+
+        self.controller.update_model(self.sim,
+                                     id_name='j2s6s300_link_6',
+                                     joint_index=np.arange(6))
+
+        torques = self.controller.action_to_torques(action,
+                                                    policy_step)  # this scales and clips the actions correctly
+
+        for i in range(len(torques)):
+            self.sim.data.ctrl[i]=torques[i]
 
         self.sim.forward()
         self.sim.step()

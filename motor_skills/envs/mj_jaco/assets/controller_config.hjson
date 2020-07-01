@@ -17,6 +17,7 @@
         "impedance_flag": false,
         "use_delta_impedance": false,
         "interpolation": "linear"
+        "control_freq": 20
     },
 
     // Position controller

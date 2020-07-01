@@ -10,4 +10,4 @@ if __name__ == '__main__':
     env.reset()
 
     for t in range(10000):
-        env.step([0]*9)
+        env.step([0]*6)

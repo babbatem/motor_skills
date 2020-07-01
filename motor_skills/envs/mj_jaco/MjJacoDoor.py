@@ -55,7 +55,7 @@ class MjJacoDoor(gym.Env):
         # qpos_offset[:6] = [-0.123224540, .121126694, .129906782, -0.0438253357, -0.00798207077, -0.0000539686959]
         # qpos_goal = self.sim.data.qpos[:12] + qpos_offset
         # global_goal = np.zeros(6)
-        obj_type = 3 # 3 for joint, 1 for body
+        obj_type = 1 # 3 for joint, 1 for body
         body_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_link_6")
         ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[body_idx]
         ee_frame_goal = np.append(ee_frame_goal, 1)
@@ -67,14 +67,16 @@ class MjJacoDoor(gym.Env):
         trans_mat[3,3] = 1
         trans_mat[:3,3] = self.sim.data.body_xpos[body_idx]
         world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
+
         # print(self.sim.data.body_xpos[body_idx])
         # print(world_goal)
         # print(global_goal)
         for t in range(1000):
             self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, body_idx, kp=None, kv=None, ndof=12)
-            self.sim.step()
             self.sim.forward()
+            self.sim.step()
             self.viewer.render()
+
 
         # print('Diff: ' + str(self.sim.data.body_xpos[ee_index] - old))
         offset = np.zeros(12)

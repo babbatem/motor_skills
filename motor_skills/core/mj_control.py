@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import mujoco_py
@@ -127,6 +128,7 @@ def ee_regulation(x_des, sim, ee_index, kp=None, kv=None, ndof=9):
     xdot = np.matmul(jacp, sim.data.qvel[:ndof])
     error_vel = xdot
     error_pos = x_des - sim.data.body_xpos[ee_index]
+
     pos_term = np.matmul(kp,error_pos)
     vel_term = np.matmul(kv,error_vel)
 
@@ -134,6 +136,75 @@ def ee_regulation(x_des, sim, ee_index, kp=None, kv=None, ndof=9):
     F = pos_term - vel_term
     torques = np.matmul(jacp.T, F) + sim.data.qfrc_bias[:ndof]
     # torques = np.matmul(jacp.T, F)
+
+    return torques
+
+def calculate_orientation_error(desired, current):
+    """
+    Optimized function to determine orientation error
+    borrowed from robosuite. thanks, robosuite.
+    """
+
+    def cross_product(vec1, vec2):
+        S = np.array(([0, -vec1[2], vec1[1]],
+                      [vec1[2], 0, -vec1[0]],
+                      [-vec1[1], vec1[0], 0]))
+
+        return np.dot(S, vec2)
+
+    rc1 = current[0:3, 0]
+    rc2 = current[0:3, 1]
+    rc3 = current[0:3, 2]
+    rd1 = desired[0:3, 0]
+    rd2 = desired[0:3, 1]
+    rd3 = desired[0:3, 2]
+
+    orientation_error = 0.5 * (cross_product(rc1, rd1) + cross_product(rc2, rd2) + cross_product(rc3, rd3))
+
+    return orientation_error
+
+def ee_reg2(x_des, quat_des, sim, ee_index, kp=None, kv=None, ndof=12):
+    """
+    same as ee_regulation, but now also accepting quat_des.
+    """
+    kp = np.eye(len(sim.data.body_xpos[ee_index]))*10 if kp is None else kp
+    kv = np.eye(len(sim.data.body_xpos[ee_index]))*1 if kv is None else kv
+
+    jacp,jacr=jac(sim, ee_index, ndof)
+
+    # % compute position error terms as before
+    xdot = np.matmul(jacp, sim.data.qvel[:ndof])
+    error_vel = xdot
+    error_pos = x_des - sim.data.body_xpos[ee_index]
+
+    pos_term = np.matmul(kp,error_pos)
+    vel_term = np.matmul(kv,error_vel)
+
+    # % compute orientation error terms
+    current_ee_quat = copy.deepcopy(sim.data.body_xquat[ee_index])
+    current_ee_rotmat = R.from_quat([current_ee_quat[1],
+                                     current_ee_quat[2],
+                                     current_ee_quat[3],
+                                     current_ee_quat[0]])
+
+    target_ee_rotmat = R.from_quat([quat_des[1],
+                                    quat_des[2],
+                                    quat_des[3],
+                                    quat_des[0]])
+
+    ori_error = calculate_orientation_error(target_ee_rotmat.as_dcm(), current_ee_rotmat.as_dcm())
+    euler_dot = np.matmul(jacr, sim.data.qvel[:ndof])
+    ori_pos_term = np.matmul(kp, ori_error)
+    ori_vel_term = np.matmul(kv, euler_dot)
+
+
+    # % commanding ee pose only
+    F_pos = pos_term - vel_term
+    F_ori = ori_pos_term - ori_vel_term
+    J_full = np.concatenate([jacp, jacr])
+    F_full = np.concatenate([F_pos, F_ori])
+
+    torques = np.matmul(J_full.T, F_full) + sim.data.qfrc_bias[:ndof]
     return torques
 
 def generate_random_goal(n=9):

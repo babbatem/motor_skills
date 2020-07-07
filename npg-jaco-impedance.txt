@@ -9,7 +9,7 @@
 'save_freq'     :   25,
 'eval_rollouts' :   25,
 'exp_notes'     :   'Example config for training policy using DAPG for the relocate-v0 task.',
-'init_log_std'  :   1000,
+'init_log_std'  :   0,
 
 # RL parameters (all params related to PG, value function, DAPG etc.)
 

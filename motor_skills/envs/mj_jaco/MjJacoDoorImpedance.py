@@ -51,8 +51,12 @@ class MjJacoDoorImpedance(gym.Env):
     def reset(self):
 
         # %% TODO: sample start state from CIP init set.
-        # %% TODO: reset gripper
-        # %% TODO: reset controller
+
+        # %% reset controller
+        self.cip.controller.reset()
+
+        # %% reset gripper
+        self.sim.data.qpos[6:12] = np.zeros(6)
 
         # for now:
         # pick a random start arm pose (DoFs 1-6)

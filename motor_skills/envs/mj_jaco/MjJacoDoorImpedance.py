@@ -18,7 +18,7 @@ DOOR_GOAL = np.pi / 2
 class MjJacoDoorImpedance(gym.Env):
     """docstring for MjJacoDoor."""
 
-    def __init__(self, vis=True, n_steps=int(20000)):
+    def __init__(self, vis=True, n_steps=int(1000)):
 
         # %% setup MuJoCo
         self.parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
@@ -58,6 +58,10 @@ class MjJacoDoorImpedance(gym.Env):
         # %% reset gripper
         self.sim.data.qpos[6:12] = np.zeros(6)
 
+        # %% reset the object
+        self.sim.data.qpos[-1]=0.0
+        self.sim.data.qpos[-2]=0.0
+
         # for now:
         # pick a random start arm pose (DoFs 1-6)
         start_pose_file = open(self.parent_dir_path + "/assets/MjJacoDoorGrasps", 'rb')
@@ -83,10 +87,8 @@ class MjJacoDoorImpedance(gym.Env):
             policy_step = False
             self.elapsed_steps+=1
 
-        self.sim.step()
         self.viewer.render() if self.vis else None
-
-        reward = -1*(DOOR_GOAL - self.sim.data.qpos[-1])**2
+        reward = -1*(DOOR_GOAL - self.sim.data.qpos[-2])**2
         info={'goal_achieved': reward > -1e-1 }
         done = self.elapsed_steps >= (self.n_steps - 1)
         obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])

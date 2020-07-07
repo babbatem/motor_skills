@@ -14,8 +14,8 @@
         "kp_max": 300,
         "kp_max_abs_delta": 10,
         "kp_min": 10,
-        "impedance_flag": false,
-        "use_delta_impedance": false,
+        "impedance_flag": true
+        "use_delta_impedance": true
         "interpolation": "linear"
         "control_freq": 20
     },

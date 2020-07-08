@@ -53,8 +53,9 @@ class MjJacoDoorImpedance(gym.Env):
 		self.n_steps = n_steps
 
 	def sample_random_pose(self):
+
 		# %% TODO: seeding elsewhere please.
-		np.random.seed(0)
+		np.random.seed(4)
 
 		# %% sample random start in [-pi,pi], make sure it is valid.
 		random_q = 2 * np.pi * np.random.rand(6) - np.pi
@@ -132,18 +133,22 @@ class MjJacoDoorImpedance(gym.Env):
 
 	def step(self, action):
 
+		print(self.elapsed_steps)
+
 		# %% interpret action as target [pos, ori] of gripper
 		policy_step = True
 		for i in range(int(self.control_timestep / self.model_timestep)):
-			torques=action
-			# torques = self.cip.get_action(action, policy_step)
+
+			# %% TODO: re-enable CIP controller.
+			torques = self.cip.get_action(action, policy_step)
 			torques += self.sim.data.qfrc_bias[:self.arm_dof]
 			self.sim.data.ctrl[:self.arm_dof] = torques
-			#
+
 			# # %% TODO: gripper action
-			# self.sim.step()
-			# policy_step = False
-			# self.elapsed_steps+=1
+			
+			self.sim.step()
+			policy_step = False
+			self.elapsed_steps+=1
 
 		self.viewer.render() if self.vis else None
 

@@ -40,7 +40,7 @@
 
     <worldbody>
       <light directional="true" cutoff="60" exponent="1" diffuse="1 1 1" specular=".1 .1 .1" pos="1 1 1.5" dir="-1 -1 -1.3"/>
-      <geom name="ground" class="ground" pos="0 0 0" size="2 2 1"/>
+      <!-- <geom name="ground" class="ground" pos="0 0 0" size="2 2 1"/> -->
 
         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="base" />
         <body name="j2s6s300_link_1" childclass="vizNcoll" pos="0 0 0.15675" quat="0 0 1 0">

@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 from enum import Enum
 
-import robosuite.utils.transform_utils as T
+import motor_skills.cip.transform_utils as T
 import mujoco_py
 
 #from baselines.baselines import logger

@@ -31,21 +31,23 @@ def do_rollout(
     :return:
     """
 
-    # # get the correct env behavior
-    # if type(env) == str:
-    #     env = GymEnv(env)
-    # elif isinstance(env, GymEnv):
-    #     env = env
-    # elif callable(env):
-    #     env = env(**env_kwargs)
-    # else:
-    #     print("Unsupported environment format")
-    #     raise AttributeError
+    print(env)
+
+    # get the correct env behavior
+    if type(env) == str:
+        env = GymEnv(env)
+    elif isinstance(env, GymEnv):
+        env = env
+    elif callable(env):
+        env = env(**env_kwargs)
+    else:
+        print("Unsupported environment format")
+        raise AttributeError
 
 
     # REAL HOT FIX
     # env = GymEnv('kuka_gym:KukaDrawer-v0')
-    env=GymEnv(os.environ['GYM_ENV'])
+    # env=GymEnv(os.environ['GYM_ENV'])
 
     if base_seed is not None:
         env.set_seed(base_seed)

@@ -1,13 +1,15 @@
 import gym
 import mjrl.envs
-import click 
+import click
 import os
 import gym
 import numpy as np
 import pickle
 from mjrl.utils.gym_env import GymEnv
 from mjrl.policies.gaussian_mlp import MLP
-import trajopt.envs
+# import trajopt.envs
+
+import motor_skills.envs
 
 DESC = '''
 Helper script to visualize policy (in mjrl format).\n
@@ -36,4 +38,3 @@ def main(env_name, policy, mode, seed, episodes):
 
 if __name__ == '__main__':
     main()
-

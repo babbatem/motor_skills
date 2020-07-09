@@ -55,7 +55,7 @@ class MjJacoDoorImpedance(gym.Env):
 	def sample_random_pose(self):
 
 		# %% TODO: seeding elsewhere please.
-		np.random.seed(4)
+		# np.random.seed(4)
 
 		# %% sample random start in [-pi,pi], make sure it is valid.
 		random_q = 2 * np.pi * np.random.rand(6) - np.pi
@@ -145,7 +145,7 @@ class MjJacoDoorImpedance(gym.Env):
 			self.sim.data.ctrl[:self.arm_dof] = torques
 
 			# # %% TODO: gripper action
-			
+
 			self.sim.step()
 			policy_step = False
 			self.elapsed_steps+=1

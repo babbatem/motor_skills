@@ -23,15 +23,14 @@ if __name__ == '__main__':
 
 
     for t in range(10000):
-        # delta_pos = [0, 0, 0.1]
-        # delta_ori = [0,0,0]
-        # delta_kp = [0,0,0]
-        # delta_kv = [0,0,0]
-        # action=np.concatenate((delta_pos, delta_ori,
-        #                        delta_kp, delta_kp, delta_kv, delta_kv))
-        # delta_pos = (ee_xpos_goal - ee_current_pos) / 100000
-        torques = mjc.ee_reg2(ee_current_pos, ee_current_quat,
-                                       env.sim, ee_index,
-                                       kp=None, kv=None, ndof=12)
+        delta_pos = [0, 0, 0.5]
+        delta_ori = [0,0,0]
+        delta_kp = [0,0,0]
+        delta_kv = [0,0,0]
+        action=np.concatenate((delta_pos, delta_ori,
+                               delta_kp, delta_kp, delta_kv, delta_kv))
+        # torques = mjc.ee_reg2(ee_current_pos, ee_current_quat,
+        #                                env.sim, ee_index,
+        #                                kp=None, kv=None, ndof=12)
 
-        env.step(torques[:6])
+        env.step(action)

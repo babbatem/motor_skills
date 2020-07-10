@@ -31,8 +31,6 @@ def do_rollout(
     :return:
     """
 
-    print(env)
-
     # get the correct env behavior
     if type(env) == str:
         env = GymEnv(env)

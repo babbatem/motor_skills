@@ -5,11 +5,11 @@
 'env'           :   'motor_skills:mj_jaco_door_impedance-v0',
 'algorithm'     :   'NPG',
 'seed'          :   123,
-'num_cpu'       :   1,
-'save_freq'     :   25,
-'eval_rollouts' :   25,
+'num_cpu'       :   7,
+'save_freq'     :   5,
+'eval_rollouts' :   1,
 'exp_notes'     :   'Example config for training policy using DAPG for the relocate-v0 task.',
-'init_log_std'  :   0,
+'init_log_std'  :   1,
 
 # RL parameters (all params related to PG, value function, DAPG etc.)
 

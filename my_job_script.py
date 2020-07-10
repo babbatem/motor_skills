@@ -20,7 +20,6 @@ import mjrl.envs
 import time as timer
 import pickle
 import argparse
-from motor_skills.envs.mj_jaco import MjJacoDoor
 
 # ===============================================================================
 # Get command line arguments
@@ -46,19 +45,12 @@ with open(EXP_FILE, 'w') as f:
 # ===============================================================================
 # Train Loop
 # ===============================================================================
-
 e = GymEnv(job_data['env'])
 spec = e.spec
-
-# pickle.dump(e.spec, open('envspec.pickle', 'wb'))
-# import sys
-# sys.exit()
-
-# spec = pickle.load(open('envspec.pickle','rb'))
 policy = MLP(spec,
              hidden_sizes=job_data['policy_size'],
              seed=job_data['seed'],
-             init_log_std=job_data['init_log_std'])             
+             init_log_std=job_data['init_log_std'])
 baseline = MLPBaseline(spec, reg_coef=1e-3, batch_size=job_data['vf_batch_size'],
                        epochs=job_data['vf_epochs'], learn_rate=job_data['vf_learn_rate'])
 
@@ -97,17 +89,11 @@ if job_data['algorithm'] != 'DAPG':
 # ===============================================================================
 # RL Loop
 # ===============================================================================
-# e = GymEnv(job_data['env'])
-# e=[]
 rl_agent = DAPG(e, policy, baseline, demo_paths,
                 normalized_step_size=job_data['rl_step_size'],
                 lam_0=job_data['lam_0'], lam_1=job_data['lam_1'],
                 seed=job_data['seed'], save_logs=True
                 )
-
-# import pybullet as p
-# p.disconnect()
-# del e
 
 print("========================================")
 print("Starting reinforcement learning phase")

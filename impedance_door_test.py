@@ -27,8 +27,11 @@ if __name__ == '__main__':
         delta_ori = [0,0,0]
         delta_kp = [0,0,0]
         delta_kv = [0,0,0]
+        delta_gripper_pos = [0, 0, 0, 0, 0, 0]
         action=np.concatenate((delta_pos, delta_ori,
-                               delta_kp, delta_kp, delta_kv, delta_kv))
+                               delta_kp, delta_kp,
+                               delta_kv, delta_kv,
+                               delta_gripper_pos))
         # torques = mjc.ee_reg2(ee_current_pos, ee_current_quat,
         #                                env.sim, ee_index,
         #                                kp=None, kv=None, ndof=12)

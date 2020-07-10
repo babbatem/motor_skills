@@ -22,7 +22,7 @@ GRASP_WEIGHT = 10
 class MjJacoDoorImpedance(gym.Env):
 	"""docstring for MjJacoDoor."""
 
-	def __init__(self, vis=True, n_steps=int(1000)):
+	def __init__(self, vis=False, n_steps=int(10000)):
 
 		# %% setup MuJoCo
 		self.parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
@@ -38,9 +38,10 @@ class MjJacoDoorImpedance(gym.Env):
 		self.control_timestep = 1.0 / self.cip.controller.control_freq
 		self.model_timestep = self.sim.model.opt.timestep
 		self.arm_dof = self.cip.controller.control_dim
+		self.gripper_indices = np.arange(self.arm_dof, len(self.sim.data.ctrl))
 
 		# %% configure action space (+6 for the gripper)
-		action_dim = self.cip.controller.action_dim
+		action_dim = self.cip.controller.action_dim + 6
 		a_low = np.full(action_dim, -float('inf'))
 		a_high = np.full(action_dim, float('inf'))
 		self.action_space = gym.spaces.Box(a_low,a_high)
@@ -53,9 +54,6 @@ class MjJacoDoorImpedance(gym.Env):
 		self.n_steps = n_steps
 
 	def sample_random_pose(self):
-
-		# %% TODO: seeding elsewhere please.
-		# np.random.seed(4)
 
 		# %% sample random start in [-pi,pi], make sure it is valid.
 		random_q = 2 * np.pi * np.random.rand(6) - np.pi
@@ -75,15 +73,15 @@ class MjJacoDoorImpedance(gym.Env):
 
 		# %% TODO: finish this, call recursively
 		# %% make sure we aren't in penetration
-		my_max_contacts=10
-		for i in range(my_max_contacts):
-
-			# %% break if we are into un-filled contacts
-			if (self.sim.data.contact[i].geom1 == 0 \
-				and self.sim.data.contact[i].geom2 == 0):
-				break
-
-		return
+		# my_max_contacts=10
+		# for i in range(my_max_contacts):
+		#
+		# 	# %% break if we are into un-filled contacts
+		# 	if (self.sim.data.contact[i].geom1 == 0 \
+		# 		and self.sim.data.contact[i].geom2 == 0):
+		# 		break
+		#
+		# return
 
 
 	def reset(self):
@@ -101,7 +99,12 @@ class MjJacoDoorImpedance(gym.Env):
 			self.sim.data.qfrc_applied[i]=self.sim.data.qfrc_bias[i]
 
 		# %% sample random (valid) 6DoF pose
-		self.sample_random_pose()
+		# self.sample_random_pose()
+		start_pose_file = open(self.parent_dir_path + "/assets/MjJacoDoorGrasps", 'rb')
+		self.start_poses = pickle.load(start_pose_file)
+		idx = np.random.randint(len(self.start_poses))
+		self.sim.data.qpos[:6] = self.start_poses[8]
+		self.sim.step()
 
 		# %% reset controller
 		self.cip.controller.reset()
@@ -111,40 +114,50 @@ class MjJacoDoorImpedance(gym.Env):
 
 	def cost(self):
 		# %% TODO: smoothness cost?
-		# %% TODO: handle distance?
 		gripper_idx = cymj._mj_name2id(self.sim.model, 1, "j2s6s300_link_6")
 		handle_idx  = cymj._mj_name2id(self.sim.model, 1, "latch")
 		gripper_handle_displacement = self.sim.data.body_xpos[gripper_idx] - \
 									  self.sim.data.body_xpos[handle_idx]
 
-		print(gripper_handle_displacement)
 		gripper_handle_distance = np.linalg.norm(gripper_handle_displacement)
 		cost = DOOR_WEIGHT*(DOOR_GOAL - self.sim.data.qpos[-2])**2 + \
 			   HANDLE_WEIGHT*(HANDLE_GOAL - self.sim.data.qpos[-1])**2 + \
 			   GRASP_WEIGHT*(gripper_handle_distance)
 
-		print('--')
-		print(self.elapsed_steps)
-		print(DOOR_WEIGHT*(DOOR_GOAL - self.sim.data.qpos[-2])**2)
-		print(HANDLE_WEIGHT*(HANDLE_GOAL - self.sim.data.qpos[-1])**2)
-		print(GRASP_WEIGHT*(gripper_handle_distance))
+		# %% TODO: how is this tuning?
+		# print('--')
+		# print(self.elapsed_steps)
+		# print(DOOR_WEIGHT*(DOOR_GOAL - self.sim.data.qpos[-2])**2)
+		# print(HANDLE_WEIGHT*(HANDLE_GOAL - self.sim.data.qpos[-1])**2)
+		# print(GRASP_WEIGHT*(gripper_handle_distance))
 		return cost
 
 
 	def step(self, action):
 
-		print(self.elapsed_steps)
+		# %% split action in arm, gripper
+		arm_action = action[:self.cip.controller.action_dim]
+		gripper_action = action[self.cip.controller.action_dim:]
+		grp_idx = self.gripper_indices
 
-		# %% interpret action as target [pos, ori] of gripper
 		policy_step = True
 		for i in range(int(self.control_timestep / self.model_timestep)):
 
-			# %% TODO: re-enable CIP controller.
-			torques = self.cip.get_action(action, policy_step)
-			torques += self.sim.data.qfrc_bias[:self.arm_dof]
-			self.sim.data.ctrl[:self.arm_dof] = torques
+			# %% interpret arm_action as target [pos, ori] of gripper
+			arm_torques = self.cip.get_action(arm_action, policy_step)
+			arm_torques += self.sim.data.qfrc_bias[:self.arm_dof]
+			self.sim.data.ctrl[:self.arm_dof] = arm_torques
 
-			# # %% TODO: gripper action
+			# %% treat gripper action as delta position (fixed kp, kv)
+			gripper_target = copy.deepcopy(self.sim.data.qpos[:len(self.sim.data.ctrl)])
+			gripper_target[grp_idx]+=gripper_action
+			gripper_torques = mjc.pd(None,
+									 np.zeros(len(self.sim.data.ctrl)),
+									 gripper_target,
+									 self.sim)
+
+			self.sim.data.ctrl[grp_idx] = gripper_torques[grp_idx] + \
+										  self.sim.data.qfrc_bias[grp_idx]
 
 			self.sim.step()
 			policy_step = False
@@ -153,8 +166,14 @@ class MjJacoDoorImpedance(gym.Env):
 		self.viewer.render() if self.vis else None
 
 		reward = -1*self.cost()
-
 		info={'goal_achieved': reward > -1e-1 }
 		done = self.elapsed_steps >= (self.n_steps - 1)
 		obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
 		return obs, reward, done, info
+
+	def render(self):
+		try:
+			self.viewer.render()
+		except Exception as e:
+			self.viewer = MjViewer(self.sim)
+			self.viewer.render()

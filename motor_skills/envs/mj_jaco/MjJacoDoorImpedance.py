@@ -22,7 +22,7 @@ GRASP_WEIGHT = 10
 class MjJacoDoorImpedance(gym.Env):
 	"""docstring for MjJacoDoor."""
 
-	def __init__(self, vis=False, n_steps=int(10000)):
+	def __init__(self, vis=False, n_steps=int(2000)):
 
 		# %% setup MuJoCo
 		self.parent_dir_path = str(pathlib.Path(__file__).parent.absolute())

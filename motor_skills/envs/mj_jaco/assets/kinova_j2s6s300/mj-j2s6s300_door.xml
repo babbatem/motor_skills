@@ -1,5 +1,6 @@
 <mujoco model="j2s6s300">
     <compiler angle="radian" meshdir="meshes" eulerseq="xyz"/>
+    <option timestep="0.008"/>
     <visual>
           <map znear="0.1" zfar="12.0"/>
     </visual>

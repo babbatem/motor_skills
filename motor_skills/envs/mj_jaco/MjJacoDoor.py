@@ -41,8 +41,8 @@ class MjJacoDoor(gym.Env):
         start_pose_file = open(self.parent_dir_path + "/assets/MjJacoDoorGrasps", 'rb')
         self.start_poses = pickle.load(start_pose_file)
         idx = np.random.randint(len(self.start_poses))
-        # self.sim.data.qpos[:6]=self.start_poses[idx]
-        self.sim.data.qpos[:6] = self.start_poses[8]
+        self.sim.data.qpos[:6]=self.start_poses[idx]
+        # self.sim.data.qpos[:6] = self.start_poses[11]
         self.sim.step()
 
         # TODO: close the gripper here
@@ -58,24 +58,35 @@ class MjJacoDoor(gym.Env):
         obj_type = 1 # 3 for joint, 1 for body
         body_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_link_6")
         ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[body_idx]
-        ee_frame_goal = np.append(ee_frame_goal, 1)
-        # print(self.sim.data.body_xquat[body_idx].shape)
-        rot_mat = R.from_quat(self.sim.data.body_xquat)
-        trans_mat = np.zeros([4,4])
-        trans_mat[:3,:3] = rot_mat.as_dcm()[body_idx]
-        trans_mat[3,:3] = 0
-        trans_mat[3,3] = 1
-        trans_mat[:3,3] = self.sim.data.body_xpos[body_idx]
-        world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
+        # ee_frame_goal = np.append(ee_frame_goal, 1)
+        # # print(self.sim.data.body_xquat[body_idx].shape)
+        # cur_quat = copy.deepcopy(self.sim.data.body_xquat[body_idx])
+        # rot_mat = R.from_quat([cur_quat[1],
+        #                         cur_quat[2],
+        #                         cur_quat[3],
+        #                         cur_quat[0]])
+        # trans_mat = np.zeros([4,4])
+        # trans_mat[:3,:3] = rot_mat.as_dcm()
+        # trans_mat[3,:3] = 0
+        # trans_mat[3,3] = 1
+        # trans_mat[:3,3] = self.sim.data.body_xpos[body_idx]
+        # # print(trans_mat)
+        # # print(self.sim.data.body_xpos[body_idx])
+        # world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
+        # print(world_goal)
 
         # print(self.sim.data.body_xpos[body_idx])
         # print(world_goal)
         # print(global_goal)
-        for t in range(1000):
-            self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, body_idx, kp=None, kv=None, ndof=12)
+        print(self.sim.data.body_xpos[body_idx])
+        print(ee_frame_goal)
+        for t in range(7000):
+            self.sim.data.ctrl[:] = mjc.ee_reg2(ee_frame_goal, self.sim.data.body_xquat[body_idx], self.sim, body_idx, kp=None, kv=None, ndof=12)
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
+        
+        print(self.sim.data.body_xpos[body_idx])
 
 
         # print('Diff: ' + str(self.sim.data.body_xpos[ee_index] - old))
@@ -95,13 +106,13 @@ class MjJacoDoor(gym.Env):
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
-            print(self.sim.data.sensordata)
+            # print(self.sim.data.sensordata)
             touched = np.where(self.sim.data.sensordata[:6] != 0.0)
             # print(touched)
             if len(touched) == len(self.sim.data.sensordata):
                 break
             current_pos = self.sim.data.qpos
-            print(current_pos)
+            # print(current_pos)
             # for touch_point in touched:
             #     new_pos[touch_point] = current_pos[touch_point]
             self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)

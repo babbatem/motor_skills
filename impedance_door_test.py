@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 
     for t in range(10000):
-        delta_pos = [0, 0, 0.5]
+        delta_pos = [0, 0, 0.3]
         delta_ori = [0,0,0]
         delta_kp = [0,0,0]
         delta_kv = [0,0,0]

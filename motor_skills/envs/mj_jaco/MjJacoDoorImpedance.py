@@ -7,7 +7,7 @@ import gym
 import numpy as np
 from mujoco_py import load_model_from_path, MjSim, MjViewer
 from motor_skills.envs.mj_jaco import MjJacoEnv
-import motor_skills.core.mj_control as mjc
+
 from mujoco_py import cymj
 from scipy.spatial.transform import Rotation as R
 
@@ -135,30 +135,12 @@ class MjJacoDoorImpedance(gym.Env):
 
 	def step(self, action):
 
-		# %% split action in arm, gripper
-		arm_action = action[:self.cip.controller.action_dim]
-		gripper_action = action[self.cip.controller.action_dim:]
-		grp_idx = self.gripper_indices
-
 		policy_step = True
 		for i in range(int(self.control_timestep / self.model_timestep)):
 
-			# %% interpret arm_action as target [pos, ori] of gripper
-			arm_torques = self.cip.get_action(arm_action, policy_step)
-			arm_torques += self.sim.data.qfrc_bias[:self.arm_dof]
-			self.sim.data.ctrl[:self.arm_dof] = arm_torques
-
-			# %% treat gripper action as delta position (fixed kp, kv)
-			gripper_target = copy.deepcopy(self.sim.data.qpos[:len(self.sim.data.ctrl)])
-			gripper_target[grp_idx]+=gripper_action
-			gripper_torques = mjc.pd(None,
-									 np.zeros(len(self.sim.data.ctrl)),
-									 gripper_target,
-									 self.sim)
-
-			self.sim.data.ctrl[grp_idx] = gripper_torques[grp_idx] + \
-										  self.sim.data.qfrc_bias[grp_idx]
-
+			# %% interpret as torques here (gravity comp done in the CIP)
+			torques = self.cip.get_action(action, policy_step)
+			self.sim.data.ctrl[:] = torques
 			self.sim.step()
 			policy_step = False
 			self.elapsed_steps+=1

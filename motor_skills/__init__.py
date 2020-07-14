@@ -9,3 +9,9 @@ register(
     id='mj_jaco_door_impedance-v0',
     entry_point='motor_skills.envs.mj_jaco:MjJacoDoorImpedance'
 )
+
+
+register(
+    id='mj_jaco_door_mppi-v0',
+    entry_point='motor_skills.envs.mj_jaco:MjJacoMPPI'
+)

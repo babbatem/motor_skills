@@ -3,7 +3,7 @@ import pathlib
 import numpy as np
 import time as timer
 from tqdm import tqdm
-import pickle 
+import pickle
 
 from trajopt.algos.mppi import MPPI
 from trajopt.envs.utils import get_environment
@@ -25,7 +25,8 @@ class mppiPlanner(object):
 
         env_kwargs = {"start" : start,
                       "goal_pos": goal_pos,
-                      "goal_quat" : goal_quat}
+                      "goal_quat" : goal_quat,
+                      "vis" : False}
 
         # %% TODO: don't hardcode these paths
         parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
@@ -51,37 +52,29 @@ class mppiPlanner(object):
         trajectories = []
 
         ts=timer.time()
-        for i in range(job_data['num_traj']):
-            start_time = timer.time()
-            print("Currently optimizing trajectory : %i" % i)
-            seed = job_data['seed'] + i*12345
-            e.reset(seed=seed)
+        start_time = timer.time()
+        seed = job_data['seed']
+        e.reset(seed=seed)
 
-            agent = MPPI(e,
-                         H=job_data['plan_horizon'],
-                         paths_per_cpu=job_data['paths_per_cpu'],
-                         num_cpu=job_data['num_cpu'],
-                         kappa=job_data['kappa'],
-                         gamma=job_data['gamma'],
-                         mean=mean,
-                         filter_coefs=filter_coefs,
-                         default_act=job_data['default_act'],
-                         seed=seed,
-                         env_callable=self.env_callable,
-                         env_kwargs=env_kwargs)
+        agent = MPPI(e,
+                     H=job_data['plan_horizon'],
+                     paths_per_cpu=job_data['paths_per_cpu'],
+                     num_cpu=job_data['num_cpu'],
+                     kappa=job_data['kappa'],
+                     gamma=job_data['gamma'],
+                     mean=mean,
+                     filter_coefs=filter_coefs,
+                     default_act=job_data['default_act'],
+                     seed=seed,
+                     env_callable=self.env_callable,
+                     env_kwargs=env_kwargs)
 
-            for t in tqdm(range(job_data['H_total'])):
-                agent.train_step(job_data['num_iter'])
+        for t in tqdm(range(job_data['H_total'])):
+            agent.train_step(job_data['num_iter'])
 
-            end_time = timer.time()
-            print("Trajectory reward = %f" % np.sum(agent.sol_reward))
-            print("Optimization time for this trajectory = %f" % (end_time - start_time))
-            trajectories.append(agent)
-            pickle.dump(trajectories, open(PICKLE_FILE, 'wb'))
-
-        print("Time for trajectory optimization = %f seconds" %(timer.time()-ts))
-        pickle.dump(trajectories, open(PICKLE_FILE, 'wb'))
-
+        end_time = timer.time()
+        print("Trajectory reward = %f" % np.sum(agent.sol_reward))
+        print("Optimization time for this trajectory = %f" % (end_time - start_time))
         return agent.act_sequence
 
 if __name__ == "__main__":
@@ -92,25 +85,32 @@ if __name__ == "__main__":
     goal_quat = [1, 0, 0, 0]
     action_sequence = planner.plan(start, goal_pos, goal_quat)
 
-    e = MjJacoMPPI()
-
     env_kwargs = {
-                  "vis" : False,
+                  "vis" : True,
                   "n_steps" : int(1000),
                   "start" : start,
                   "goal_pos": goal_pos,
                   "goal_quat" : goal_quat}
 
+    env_id=MjJacoMPPI
     e=env_id(**env_kwargs)
     e.reset()
     start_state = e.get_env_state()
 
+    np.save('my_trajectory.npy', action_sequence)
+
     H = len(action_sequence)
     print(H)
 
+    obs=[]
+    act=[]
+    states=[]
+    env_infos=[]
+    rewards=[]
+
     for k in range(H):
         obs.append(e.get_obs())
-        act.append(act_list[i][k])
+        act.append(action_sequence[k])
         env_infos.append(e.get_env_infos())
         states.append(e.get_env_state())
         s, r, d, ifo = e.step(act[-1])

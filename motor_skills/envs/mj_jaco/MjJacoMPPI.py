@@ -70,7 +70,7 @@ class MjJacoMPPI(gym.Env):
 		# %% reset controller
 		self.cip.controller.reset()
 		obs = np.array(self.sim.data.qpos[:self.arm_dof])
-		self.elapsed_steps=0
+		self.env_timestep=0
 		return obs
 
 	def cost(self):
@@ -78,7 +78,7 @@ class MjJacoMPPI(gym.Env):
 		gripper_target_displacement = self.sim.data.body_xpos[self.grp_idx] - self.goal_pos
 		gripper_target_distance = np.linalg.norm(gripper_target_displacement)
 
-		current_rotmat = R.from_quat(mjc.quat_to_scipy(self.sim.data.body_xquat[gripper_idx]))
+		current_rotmat = R.from_quat(mjc.quat_to_scipy(self.sim.data.body_xquat[self.grp_idx]))
 		current_rotmat = current_rotmat.as_dcm()
 		orientation_error = self.cip.controller.calculate_orientation_error(self.goal_rotmat, current_rotmat)
 		orientation_norm = np.linalg.norm(orientation_error)
@@ -98,14 +98,14 @@ class MjJacoMPPI(gym.Env):
 			self.sim.data.ctrl[:self.arm_dof] = torques
 			self.sim.step()
 			policy_step = False
-			self.elapsed_steps+=1
+			self.env_timestep+=1
 
 		self.viewer.render() if self.vis else None
 
 		reward = -1*self.cost()
 		info={'goal_achieved': reward > -1e-1 }
-		done = self.elapsed_steps >= (self.n_steps - 1)
-		obs = self.sim.qpos[:self.arm_dof]
+		done = self.env_timestep >= (self.n_steps - 1)
+		obs = self.sim.data.qpos[:self.arm_dof]
 		return obs, reward, done, info
 
 	def render(self):
@@ -116,9 +116,33 @@ class MjJacoMPPI(gym.Env):
 			self.viewer.render()
 
 	def get_env_state(self):
-		# %% TODO
-		pass
+		target_pos=self.goal_pos
+		target_rot=self.goal_quat
 
-	def set_env_state(self):
-		# %% TODO
-		pass
+		return dict(qp=self.sim.data.qpos.copy(), qv=self.sim.data.qvel.copy(),
+					qa=self.sim.data.qacc.copy(),
+					target_pos=target_pos, target_rot=target_rot,
+					timestep=self.env_timestep)
+
+	def set_env_state(self, state):
+		self.sim.reset()
+		qp = state['qp'].copy()
+		qv = state['qv'].copy()
+		qa = state['qa'].copy()
+		target_pos = state['target_pos']
+		self.env_timestep = state['timestep']
+		# self.model.site_pos[self.target_sid] = target_pos
+		self.sim.forward()
+		self.sim.data.qpos[:] = qp
+		self.sim.data.qvel[:] = qv
+		self.sim.data.qacc[:] = qa
+		self.sim.forward()
+
+	def get_obs(self):
+		return np.concatenate([
+			self.sim.data.qpos.flat,
+			self.sim.data.qvel.flat,
+		])
+
+	def get_env_infos(self):
+		return dict(state=self.get_env_state())

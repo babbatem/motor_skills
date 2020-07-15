@@ -1,11 +1,15 @@
 import os
-import time as timer
+import pathlib
 import numpy as np
+import time as timer
+from tqdm import tqdm
+import pickle 
+
+from trajopt.algos.mppi import MPPI
+from trajopt.envs.utils import get_environment
 
 import motor_skills
 from motor_skills.envs.mj_jaco import MjJacoMPPI
-from trajopt.envs.utils import get_environment
-from trajopt.algos.mppi import MPPI
 
 class mppiPlanner(object):
     """docstring for mppiPlanner."""
@@ -23,8 +27,10 @@ class mppiPlanner(object):
                       "goal_pos": goal_pos,
                       "goal_quat" : goal_quat}
 
-        output = '/home/abba/msu_ws/src/motor_skills/motor_skills/outputs/foo'
-        config = '/home/abba/msu_ws/src/motor_skills/motor_skills/configs/jaco_mppi_config.txt'
+        # %% TODO: don't hardcode these paths
+        parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
+        output = parent_dir_path + '/outputs/mppiPlanner'
+        config = parent_dir_path + '/configs/jaco_mppi_config.txt'
 
         OUT_DIR = output
         if not os.path.exists(OUT_DIR):
@@ -62,9 +68,9 @@ class mppiPlanner(object):
                          default_act=job_data['default_act'],
                          seed=seed,
                          env_callable=self.env_callable,
-                         env_kwargs=self.env_kwargs)
+                         env_kwargs=env_kwargs)
 
-            for t in trigger_tqdm(range(job_data['H_total']), VIZ):
+            for t in tqdm(range(job_data['H_total'])):
                 agent.train_step(job_data['num_iter'])
 
             end_time = timer.time()
@@ -76,10 +82,36 @@ class mppiPlanner(object):
         print("Time for trajectory optimization = %f seconds" %(timer.time()-ts))
         pickle.dump(trajectories, open(PICKLE_FILE, 'wb'))
 
+        return agent.act_sequence
+
 if __name__ == "__main__":
 
     planner = mppiPlanner()
     start = np.zeros(6)
     goal_pos = [0, 0.5, 0.5]
     goal_quat = [1, 0, 0, 0]
-    planner.plan(start, goal_pos, goal_quat)
+    action_sequence = planner.plan(start, goal_pos, goal_quat)
+
+    e = MjJacoMPPI()
+
+    env_kwargs = {
+                  "vis" : False,
+                  "n_steps" : int(1000),
+                  "start" : start,
+                  "goal_pos": goal_pos,
+                  "goal_quat" : goal_quat}
+
+    e=env_id(**env_kwargs)
+    e.reset()
+    start_state = e.get_env_state()
+
+    H = len(action_sequence)
+    print(H)
+
+    for k in range(H):
+        obs.append(e.get_obs())
+        act.append(act_list[i][k])
+        env_infos.append(e.get_env_infos())
+        states.append(e.get_env_state())
+        s, r, d, ifo = e.step(act[-1])
+        rewards.append(r)

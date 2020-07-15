@@ -26,12 +26,16 @@ class mppiExecutor(CIP):
 
 	def get_action(self, action, policy_step):
 
-		arm_action = action[:self.arm_dof]
-		self.controller.update_model(self.sim,
-									 id_name='j2s6s300_link_6',
-									 joint_index=np.arange(6))
+		# print(action)
+		# arm_action=action
 
-		torques = self.controller.action_to_torques(arm_action,
-													policy_step)
-		torques += self.sim.data.qfrc_bias[:self.arm_dof]
+		# arm_action = action[:self.arm_dof]
+		# self.controller.update_model(self.sim,
+		# 							 id_name='j2s6s300_link_6',
+		# 							 joint_index=np.arange(6))
+		#
+		# torques = self.controller.action_to_torques(arm_action,
+		# 											policy_step)
+		# torques += self.sim.data.qfrc_bias[:self.arm_dof]
+		torques = action + self.sim.data.qfrc_bias[:self.arm_dof]
 		return torques

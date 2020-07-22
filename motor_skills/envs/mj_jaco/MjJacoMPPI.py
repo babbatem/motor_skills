@@ -98,7 +98,7 @@ class MjJacoMPPI(gym.Env):
 		orientation_norm = np.linalg.norm(orientation_error)
 
 		# cost = position_cost + 100.0 * orientation_norm
-		cost=position_cost
+		cost= 1*position_cost + 0*orientation_norm
 		return cost
 
 

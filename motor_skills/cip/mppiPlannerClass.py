@@ -91,40 +91,37 @@ if __name__ == "__main__":
     start_poses = pickle.load(start_pose_file)
     start=start_poses[8][:6]
 
-    goal_pos = [0.0, 0.5, 0.5]
-    goal_quat = [1, 0, 0, 0]
-    # goal_pos = [0.22301166, 0.16430212, 0.43435462]
-    # goal_quat = [ 9.75998480e-02,  2.66663423e-04,  6.52346744e-01, -7.51610220e-01]
-
+    goal_pos = [0.0, 0.4, 0.4]
+    goal_quat = [-0.707, 0, 0.707, 0]
     action_sequence = planner.plan(start, goal_pos, goal_quat)
 
-    replay_env_kwargs = {
-                  "vis" : False,
-                  "n_steps" : int(1000),
-                  "start" : start,
-                  "goal_pos": goal_pos,
-                  "goal_quat" : goal_quat}
-
-    env_id=MjJacoMPPI
-    e=env_id(**replay_env_kwargs)
-    e.reset()
-    start_state = e.get_env_state()
-
-    np.save('my_trajectory.npy', action_sequence)
-
-    H = len(action_sequence)
-    print(H)
-
-    obs=[]
-    act=[]
-    states=[]
-    env_infos=[]
-    rewards=[]
-
-    for k in range(H):
-        obs.append(e.get_obs())
-        act.append(action_sequence[k])
-        env_infos.append(e.get_env_infos())
-        states.append(e.get_env_state())
-        s, r, d, ifo = e.step(act[-1])
-        rewards.append(r)
+    # replay_env_kwargs = {
+    #               "vis" : False,
+    #               "n_steps" : int(1000),
+    #               "start" : start,
+    #               "goal_pos": goal_pos,
+    #               "goal_quat" : goal_quat}
+    #
+    # env_id=MjJacoMPPI
+    # e=env_id(**replay_env_kwargs)
+    # e.reset()
+    # start_state = e.get_env_state()
+    #
+    # np.save('my_trajectory.npy', action_sequence)
+    #
+    # H = len(action_sequence)
+    # print(H)
+    #
+    # obs=[]
+    # act=[]
+    # states=[]
+    # env_infos=[]
+    # rewards=[]
+    #
+    # for k in range(H):
+    #     obs.append(e.get_obs())
+    #     act.append(action_sequence[k])
+    #     env_infos.append(e.get_env_infos())
+    #     states.append(e.get_env_state())
+    #     s, r, d, ifo = e.step(act[-1])
+    #     rewards.append(r)

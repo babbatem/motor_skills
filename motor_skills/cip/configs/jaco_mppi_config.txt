@@ -4,7 +4,7 @@
     'num_traj'          :       0,
     'seed'              :       123,
     'num_iter'          :       1,
-    'plan_horizon'      :       16,
+    'plan_horizon'      :       32,
     'paths_per_cpu'     :       16,
     'num_cpu'           :       8,
     'filter'            :       {'beta_0': 0.25, 'beta_1': 0.8, 'beta_2': 0.0},

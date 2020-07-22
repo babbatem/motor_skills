@@ -41,8 +41,8 @@ def pd(qdd, qd, q, sim, kp=None, kv=None, ndof=12):
 	q = sim.data.qpos[:ndof] if q is None else q
 	qd = sim.data.qvel[:ndof] if qd is None else qd
 	qdd = [0]*len(sim.data.qpos[:ndof]) if qdd is None else qdd
-	kp = np.eye(len(sim.data.qpos[:ndof]))*10 if kp is None else kp
-	kv = np.eye(len(sim.data.qpos[:ndof])) if kv is None else kv
+	kp = np.eye(len(sim.data.qpos[:ndof]))*150 if kp is None else kp
+	kv = np.eye(len(sim.data.qpos[:ndof]))*10 if kv is None else kv
 
 	# % compute the control as above
 	m = get_mass_matrix(sim, ndof)

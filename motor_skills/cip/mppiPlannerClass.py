@@ -19,14 +19,19 @@ class mppiPlanner(object):
         self.goal_pos = None
         self.goal_quat = None
         self.env_callable = MjJacoMPPI
-        self.env_kwargs = None
+        self.rollout_env_kwargs = None
 
     def plan(self, start, goal_pos, goal_quat):
 
-        env_kwargs = {"start" : start,
-                      "goal_pos": goal_pos,
-                      "goal_quat" : goal_quat,
-                      "vis" : False}
+        rollout_env_kwargs = {"start" : start,
+                              "goal_pos": goal_pos,
+                              "goal_quat" : goal_quat,
+                              "vis" : False}
+
+        vis_env_kwargs = {"start" : start,
+                           "goal_pos": goal_pos,
+                           "goal_quat" : goal_quat,
+                           "vis" : True}
 
         # %% TODO: don't hardcode these paths
         parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
@@ -45,7 +50,8 @@ class mppiPlanner(object):
         EXP_FILE = OUT_DIR + '/job_data.json'
         SEED = job_data['seed']
 
-        e = get_environment(ENV_NAME)
+        # create env for visualization (dev)
+        e=self.env_callable(**vis_env_kwargs)
         mean = np.zeros(e.action_dim)
         sigma = 1.0*np.ones(e.action_dim)
         filter_coefs = [sigma, job_data['filter']['beta_0'], job_data['filter']['beta_1'], job_data['filter']['beta_2']]
@@ -67,9 +73,9 @@ class mppiPlanner(object):
                      default_act=job_data['default_act'],
                      seed=seed,
                      env_callable=self.env_callable,
-                     env_kwargs=env_kwargs)
+                     env_kwargs=rollout_env_kwargs)
 
-        for t in tqdm(range(job_data['H_total'])):
+        for t in range(job_data['H_total']):
             agent.train_step(job_data['num_iter'])
 
         end_time = timer.time()
@@ -80,20 +86,27 @@ class mppiPlanner(object):
 if __name__ == "__main__":
 
     planner = mppiPlanner()
-    start = np.zeros(6)
-    goal_pos = [0, 0.5, 0.5]
+
+    start_pose_file = open("/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps", 'rb')
+    start_poses = pickle.load(start_pose_file)
+    start=start_poses[8][:6]
+
+    goal_pos = [0.0, 0.5, 0.5]
     goal_quat = [1, 0, 0, 0]
+    # goal_pos = [0.22301166, 0.16430212, 0.43435462]
+    # goal_quat = [ 9.75998480e-02,  2.66663423e-04,  6.52346744e-01, -7.51610220e-01]
+
     action_sequence = planner.plan(start, goal_pos, goal_quat)
 
-    env_kwargs = {
-                  "vis" : True,
+    replay_env_kwargs = {
+                  "vis" : False,
                   "n_steps" : int(1000),
                   "start" : start,
                   "goal_pos": goal_pos,
                   "goal_quat" : goal_quat}
 
     env_id=MjJacoMPPI
-    e=env_id(**env_kwargs)
+    e=env_id(**replay_env_kwargs)
     e.reset()
     start_state = e.get_env_state()
 

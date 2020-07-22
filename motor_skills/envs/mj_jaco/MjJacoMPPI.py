@@ -34,16 +34,21 @@ class MjJacoMPPI(gym.Env):
 		self.model_timestep = self.sim.model.opt.timestep
 		self.arm_dof = self.cip.controller.control_dim
 
+		# %% disable joint limits?
+		for i in range(6):
+			self.model.jnt_limited[i]=0
+
 		# %% configure action space (no gripper in this case)
-		action_dim = self.arm_dof
-		a_low = np.full(action_dim, -float('inf'))
-		a_high = np.full(action_dim, float('inf'))
+		self.action_dim = 6
+		a_low = np.full(self.action_dim, -float('inf'))
+		a_high = np.full(self.action_dim, float('inf'))
 		self.action_space = gym.spaces.Box(a_low,a_high)
 
-		obs_space = self.arm_dof
-		o_low = np.full(obs_space, -float('inf'))
-		o_high = np.full(obs_space, float('inf'))
+		self.observation_dim = self.arm_dof
+		o_low = np.full(self.observation_dim, -float('inf'))
+		o_high = np.full(self.observation_dim, float('inf'))
 		self.observation_space=gym.spaces.Box(o_low,o_high)
+
 		self.env=self
 		self.n_steps = n_steps
 
@@ -63,8 +68,10 @@ class MjJacoMPPI(gym.Env):
 		self.sim.data.qpos[-1] = 0.0
 		self.sim.step()
 
-	def reset(self):
+	def set_seed(self, seed):
+		np.random.seed(seed)
 
+	def reset(self, seed=0):
 		self.reset_model()
 
 		# %% reset controller
@@ -75,30 +82,44 @@ class MjJacoMPPI(gym.Env):
 
 	def cost(self):
 
-		gripper_target_displacement = self.sim.data.body_xpos[self.grp_idx] - self.goal_pos
+		gripper_target_displacement = np.abs(self.sim.data.body_xpos[self.grp_idx] - self.goal_pos)
 		gripper_target_distance = np.linalg.norm(gripper_target_displacement)
+
+		# A = 1; B = 10;
+		# cost = A * gripper_target_distance + B * orientation_norm
+		# cost = gripper_target_distance
+		l1_dist = np.sum(np.abs(gripper_target_displacement))
+		l2_dist = gripper_target_distance
+		position_cost = l1_dist + 5.0 * l2_dist
 
 		current_rotmat = R.from_quat(mjc.quat_to_scipy(self.sim.data.body_xquat[self.grp_idx]))
 		current_rotmat = current_rotmat.as_dcm()
 		orientation_error = self.cip.controller.calculate_orientation_error(self.goal_rotmat, current_rotmat)
 		orientation_norm = np.linalg.norm(orientation_error)
 
-		A = 1; B = 10;
-		cost = A * gripper_target_distance + B * orientation_norm
+		# cost = position_cost + 100.0 * orientation_norm
+		cost=position_cost
 		return cost
 
 
 	def step(self, action):
 
-		policy_step = True
-		for i in range(int(self.control_timestep / self.model_timestep)):
+		# 	# %% interpret as torques here (gravity comp done in the CIP)
 
-			# %% interpret as torques here (gravity comp done in the CIP)
+		policy_step = True
+		for i in range(int(self.control_timestep / self.model_timestep)):#
 			torques = self.cip.get_action(action, policy_step)
 			self.sim.data.ctrl[:self.arm_dof] = torques
 			self.sim.step()
 			policy_step = False
 			self.env_timestep+=1
+
+		# %% if above loop is commented out:
+		# torques = self.cip.get_action(action, policy_step)
+		# self.sim.data.ctrl[:self.arm_dof] = torques
+		# self.sim.step()
+		# policy_step = False
+		# self.env_timestep+=1
 
 		self.viewer.render() if self.vis else None
 

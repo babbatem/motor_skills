@@ -1,6 +1,6 @@
 <mujoco model="j2s6s300">
     <compiler angle="radian" meshdir="meshes" eulerseq="xyz"/>
-    <option timestep="0.008"/>
+    <option timestep="0.01"/>
     <visual>
           <map znear="0.1" zfar="12.0"/>
     </visual>
@@ -69,6 +69,19 @@
                                 <joint name="j2s6s300_joint_6" pos="0 0 0" axis="0 0 1" limited="true" damping="1.0" armature=".01" range="-6.28319 6.28319" />
                                 <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="hand_3finger" />
                                 <site name="wrist_ft"/>
+
+                                <!-- for vis ee -->
+                                <body name="eetestx0" pos="0.1 0 0">
+                                  <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
+                                </body>
+                                <body name="eetesty0" pos="0 0.1 0">
+                                  <geom size="0.01 0.1 0.01" type="box" rgba="0 1 0 1"/>
+                                </body>
+                                <body name="eetestz0" pos="0.0 0 0.1">
+                                  <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
+                                </body>
+
+
                                 <body name="j2s6s300_link_finger_1"  pos="0.00279 0.03126 -0.11467" quat="0.379408 -0.662973 -0.245899 0.596699">
                                     <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                     <joint name="j2s6s300_joint_finger_1" pos="0 0 0" axis="0 0 1" limited="true" damping="1.0" armature=".01" range="0 1.51" />
@@ -111,8 +124,25 @@
                 </body>
             </body>
         </body>
+        <!-- for vis -->
+        <body name="goal" pos="0.0 0.5 0.5" quat="1 0 0 0">
+          <body name="goal_testx0" pos="0.1 0 0">
+            <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
+          </body>
+          <body name="goal_testy0" pos="0 0.1 0">
+            <geom size="0.01 0.1 0.01" type="box" rgba="0 1 0 1"/>
+          </body>
+          <body name="goal_testz0" pos="0.0 0 0.1">
+            <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
+          </body>
+        </body>
         <include file="../cameras.xml"/>
-        <include file="../door/mjdoor.xml"/>
+        <!-- <include file="../door/mjdoor.xml"/> -->
+
+
+
+
+
     </worldbody>
     <actuator>
   		<!--  ================= Torque actuators (Weren't present in the URDF. Added seperately)================= /-->

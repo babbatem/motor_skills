@@ -129,10 +129,10 @@
   	</actuator>
     <sensor>
         <touch name="finger_1_base_sensor" site="proximal_sensor_site_1" />
-        <touch name="finger_2_base_sensor" site="proximal_sensor_site_2" />
-        <touch name="finger_3_base_sensor" site="proximal_sensor_site_3" />
         <touch name="finger_1_tip_sensor" site="distal_sensor_site_1"/>
+        <touch name="finger_2_base_sensor" site="proximal_sensor_site_2" />
         <touch name="finger_2_tip_sensor" site="distal_sensor_site_2"/>
+        <touch name="finger_3_base_sensor" site="proximal_sensor_site_3" />
         <touch name="finger_3_tip_sensor" site="distal_sensor_site_3"/>
         <force name="wrist_force" site="wrist_ft"/>
         <torque name="wrist_torque" site="wrist_ft"/>

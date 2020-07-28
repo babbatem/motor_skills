@@ -68,39 +68,37 @@ class MjJacoDoor(gym.Env):
         world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
 
         for t in range(10000):
-            print(str(t) + '----')
-            print(world_goal - self.sim.data.body_xpos[body_idx])
             self.sim.data.ctrl[:] = mjc.ee_reg2(world_goal, self.sim.data.body_xquat[body_idx], self.sim, body_idx, kp=None, kv=None, ndof=12)
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
 
-        offset = np.zeros(12)
+        FINGER_STEPS = 5000
+        new_pos = self.sim.data.qpos[:12]
+        small_offset = np.zeros(12)
+        finger_joint_idxs = []
         for i in range(1,4):
-            base_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_" + str(i))
-            tip_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_tip_" + str(i))
-            offset[base_idx] = 2
-            offset[tip_idx] = 2
-            new_pos = self.sim.data.qpos[:12] + offset
+            base_idx = cymj._mj_name2id(self.sim.model, 3,"j2s6s300_joint_finger_" + str(i))
+            tip_idx = cymj._mj_name2id(self.sim.model, 3,"j2s6s300_joint_finger_tip_" + str(i))
+            finger_joint_idxs.append(base_idx)
+            finger_joint_idxs.append(tip_idx)
+            small_offset[base_idx] = 1.3/FINGER_STEPS
+            small_offset[tip_idx] = 1.3/FINGER_STEPS
 
-        self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
-
-        for t in range(5000):
-            # print('Goal: ' + str(new_pos))
-            # print('Current: ' + str(self.sim.data.qpos))
+        for t in range(FINGER_STEPS):
+            new_pos += small_offset
+            touched = np.where(self.sim.data.sensordata[:6] != 0.0)[0]
+            print(touched)
+            if len(touched) == 6:
+                break
+            current_pos = self.sim.data.qpos
+            for touch_point in touched:
+                print(finger_joint_idxs[touch_point])
+                new_pos[finger_joint_idxs[touch_point]] = current_pos[finger_joint_idxs[touch_point]]
+            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
             self.sim.forward()
             self.sim.step()
             self.viewer.render()
-            # print(self.sim.data.sensordata)
-            touched = np.where(self.sim.data.sensordata[:6] != 0.0)
-            # print(touched)
-            if len(touched) == len(self.sim.data.sensordata):
-                break
-            current_pos = self.sim.data.qpos
-            # print(current_pos)
-            # for touch_point in touched:
-            #     new_pos[touch_point] = current_pos[touch_point]
-            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
 
         # reset the object
         self.sim.data.qpos[-1]=0.0

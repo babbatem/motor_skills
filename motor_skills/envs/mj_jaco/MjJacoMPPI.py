@@ -98,13 +98,13 @@ class MjJacoMPPI(gym.Env):
 		orientation_norm = np.linalg.norm(orientation_error)
 
 		# cost = position_cost + 100.0 * orientation_norm
-		cost= 1*position_cost + 0*orientation_norm
+		cost= 1*position_cost + 1*orientation_norm
 		return cost
 
 
 	def step(self, action):
 
-		# 	# %% interpret as torques here (gravity comp done in the CIP)
+		# %% interpret as torques here (gravity comp done in the CIP)
 
 		policy_step = True
 		for i in range(int(self.control_timestep / self.model_timestep)):#

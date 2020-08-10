@@ -125,7 +125,7 @@
             </body>
         </body>
         <!-- for vis -->
-        <body name="goal" pos="0.0 0.4 0.4" quat="-0.7073883 0 0.7068252 0">
+        <body name="goal" pos="-0.32264679 0.16411257 0.4319329" quat="0.09426077 -0.00206539  0.65109778 -0.75311508">
           <body name="goal_testx0" pos="0.1 0 0">
             <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
           </body>

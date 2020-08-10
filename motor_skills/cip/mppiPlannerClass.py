@@ -91,8 +91,14 @@ if __name__ == "__main__":
     start_poses = pickle.load(start_pose_file)
     start=start_poses[8][:6]
 
-    goal_pos = [0.0, 0.4, 0.4]
-    goal_quat = [-0.707, 0, 0.707, 0]
+    goal_pos=[-0.32264679, 0.16411257, 0.4319329 ]
+    goal_quat=[ 0.09426077, -0.00206539,  0.65109778, -0.75311508]
+
+
+
+
+    # goal_pos = [0.0, 0.4, 0.4]
+    # goal_quat = [-0.707, 0, 0.707, 0]
     action_sequence = planner.plan(start, goal_pos, goal_quat)
 
     # replay_env_kwargs = {

@@ -24,7 +24,7 @@ class pbValidityChecker(ob.StateValidityChecker):
         self.lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
         self.upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
 
-    # Returns whether there exists collisions.
+    # sets state and checks joint limits and collision
     def isValid(self, state):
         for i in range(NDOF):
             p.resetJointState(0,i,state[i],0)
@@ -32,16 +32,16 @@ class pbValidityChecker(ob.StateValidityChecker):
         return (
                 self.detect_collisions(self.otherIds) and \
                 self.check_plane_collision() and \
-                self.joint_limits(state)
+                self.check_joint_limits(state)
                )
+
 
     def check_plane_collision(self):
         contactPoints = p.getContactPoints(0, 1)
-        if len(contactPoints) > 0:  # NOTE: 1 contact point between base and ground may be ignored.
+        if len(contactPoints) > 0:
             return False
         else:
             return True
-
 
     # Recursively checks for collision between robotId and ids_to_check
     def detect_collisions(self, ids_to_check):
@@ -57,7 +57,7 @@ class pbValidityChecker(ob.StateValidityChecker):
             else:
                 return self.isValid(ids[0:-1])
 
-    def joint_limits(self, state):
+    def check_joint_limits(self, state):
         for i in range(NDOF):
             if state[i] > self.upper[i] or state[i] < self.lower[i]:
                 return False

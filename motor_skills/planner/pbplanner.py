@@ -12,12 +12,14 @@ from ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthO
 
 NDOF = 6
 URDFPATH='/home/abba/msu_ws/src/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
+DOORPATH='/home/abba/msu_ws/src/motor_skills/motor_skills/planner/assets/_frame.urdf'
 
 def pbsetup():
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0,0,-10)
     p.loadURDF(URDFPATH, useFixedBase=True)
-    p.loadURDF("plane.urdf")
+    p.loadURDF("plane.urdf", [0, 0, 0])
+    p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
     return
 
 # class for collision checking in python
@@ -31,10 +33,25 @@ class pbValidityChecker(ob.StateValidityChecker):
         self.lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
         self.upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
 
+        self.otherObj_states = { 2: [0,0] } # maps Uid to reset states
+        self.otherObj_dofs =   { 2: [0,2] } # maps Uid to joint indices to be reset
+
     # sets state and checks joint limits and collision
     def isValid(self, state):
+
+        # first reset robot state
         for i in range(NDOF):
             p.resetJointState(0,i,state[i],0)
+
+        # then reset scene state.
+        # TODO: more general
+        for i in range(len(self.otherIds)):
+            for j in range(len(self.otherObj_dofs[self.otherIds[i]])):
+                p.resetJointState(self.otherIds[i],
+                                  self.otherObj_dofs[self.otherIds[i]][j],
+                                  self.otherObj_states[self.otherIds[i]][j])
+
+
         p.stepSimulation()
         return (
                 self.detect_collisions(self.otherIds) and \
@@ -42,7 +59,7 @@ class pbValidityChecker(ob.StateValidityChecker):
                 self.check_joint_limits(state)
                )
 
-
+    # Returns True if there is no collision with plane
     def check_plane_collision(self):
         contactPoints = p.getContactPoints(0, 1)
         if len(contactPoints) > 0:
@@ -62,7 +79,7 @@ class pbValidityChecker(ob.StateValidityChecker):
             if len(contactPoints) > 0:
                 return False
             else:
-                return self.isValid(ids[0:-1])
+                return self.detect_collisions(ids_to_check[0:-1])
 
     def check_joint_limits(self, state):
         for i in range(NDOF):
@@ -86,6 +103,7 @@ class PbPlanner(object):
         super(PbPlanner, self).__init__()
 
         # setup pybullet
+        # p.connect(p.GUI)
         p.connect(p.DIRECT)
         pbsetup()
 
@@ -104,7 +122,7 @@ class PbPlanner(object):
         self.si = ob.SpaceInformation(self.space)
 
         # Set the object used to check which states in the space are valid
-        self.validityChecker = pbValidityChecker(self.si, [])
+        self.validityChecker = pbValidityChecker(self.si, [2])
         self.si.setStateValidityChecker(self.validityChecker)
         self.si.setup()
 

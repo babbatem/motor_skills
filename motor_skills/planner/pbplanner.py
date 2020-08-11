@@ -79,13 +79,17 @@ class pbValidityChecker(ob.StateValidityChecker):
             return self.sample_state()
 
 class PbPlanner(object):
-    """docstring for PbPlanner."""
+    """
+        constructs pybullet simulation & plans therein with OMPL.
+    """
     def __init__(self):
         super(PbPlanner, self).__init__()
 
+        # setup pybullet
         p.connect(p.DIRECT)
         pbsetup()
 
+        # setup space
         lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
         upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
         bounds = ob.RealVectorBounds(NDOF)
@@ -109,7 +113,7 @@ class PbPlanner(object):
 
     def plan(self, start_q, goal_q):
 
-        # assume start and goal configs
+        # start and goal configs
         start = ob.State(self.space)
         for i in range(len(start_q)):
             start[i] = start_q[i]
@@ -118,26 +122,13 @@ class PbPlanner(object):
         for i in range(len(start_q)):
             goal[i] = goal_q[i]
 
-        # Create a problem instance
+        # setup and solve
         pdef = ob.ProblemDefinition(self.si)
-
-        # Set the start and goal states
         pdef.setStartAndGoalStates(start, goal)
-
-        # Create the optimization objective specified by our command-line argument.
-        # This helper function is simply a switch statement.
-        # pdef.setOptimizationObjective(getPathLengthObjWithCostToGo(si))
         pdef.setOptimizationObjective(getPathLengthObjective(self.si))
-
-        # Construct the optimal planner specified by our command line argument.
-        # This helper function is simply a switch statement.
         optimizingPlanner = allocatePlanner(self.si, self.plannerType)
-
-        # Set the problem instance for our planner to solve
         optimizingPlanner.setProblemDefinition(pdef)
         optimizingPlanner.setup()
-
-        # attempt to solve the planning problem in the given runtime
         solved = optimizingPlanner.solve(self.runTime)
 
         if solved:
@@ -182,7 +173,7 @@ def demo():
         p.resetJointState(0,i,s[i],0)
     p.stepSimulation()
 
-    result.interpolate(100)
+    result.interpolate(1000)
     H = result.getStateCount()
     print(H)
     for t in range(H):
@@ -201,5 +192,52 @@ def demo():
     _=input('Press enter to exit ')
     p.disconnect()
 
+def execution_test():
+    planner = PbPlanner()
+    s = planner.validityChecker.sample_state()
+    g = planner.validityChecker.sample_state()
+
+    # plan
+    result=planner.plan(s, g)
+    p.disconnect()
+
+    # visualize plan
+    p.connect(p.GUI)
+    pbsetup()
+
+    for i in range(len(s)):
+        p.resetJointState(0,i,s[i],0)
+    p.stepSimulation()
+    _=input('Start state. Press enter to continue')
+
+    for i in range(len(g)):
+        p.resetJointState(0,i,g[i],0)
+    p.stepSimulation()
+    _=input('Goal state. Press enter to continue')
+
+    for i in range(len(s)):
+        p.resetJointState(0,i,s[i],0)
+    p.stepSimulation()
+
+    result.interpolate(100)
+    H = result.getStateCount()
+    print(H)
+    for t in range(H):
+        state_t = result.getState(t)
+        for i in range(NDOF):
+            p.setJointMotorControl2(0,i,p.POSITION_CONTROL,targetPosition=state_t[i], positionGain=1)
+        p.stepSimulation()
+        time.sleep(0.01)
+
+    _=input('Press enter to visualize goal again ')
+    for i in range(len(g)):
+        p.resetJointState(0,i,g[i],0)
+    p.stepSimulation()
+
+    _=input('Press enter to exit ')
+    p.disconnect()
+
+
 if __name__ == '__main__':
-    demo()
+    # demo()
+    execution_test()

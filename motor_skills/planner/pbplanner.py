@@ -13,6 +13,13 @@ from ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthO
 NDOF = 6
 URDFPATH='/home/abba/msu_ws/src/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
 
+def pbsetup():
+    p.setAdditionalSearchPath(pybullet_data.getDataPath())
+    p.setGravity(0,0,-10)
+    p.loadURDF(URDFPATH, useFixedBase=True)
+    p.loadURDF("plane.urdf")
+    return
+
 # class for collision checking in python
 # not yet doing multiple physics clients (though, should be fine for multiple instances of python?)
 # ASSUMES robotId is 0, planeId is 1.
@@ -63,123 +70,101 @@ class pbValidityChecker(ob.StateValidityChecker):
                 return False
         return True
 
+    # Returns a valid state
     def sample_state(self):
-
         q = np.random.random(NDOF)*(self.upper - self.lower) + self.lower
         if self.isValid(q):
             return q
         else:
             return self.sample_state()
 
-# TODO
 class PbPlanner(object):
     """docstring for PbPlanner."""
-    def __init__(self, arg):
+    def __init__(self):
         super(PbPlanner, self).__init__()
-        self.arg = arg
 
+        p.connect(p.DIRECT)
+        pbsetup()
 
-def plan(runTime, plannerType, start_q=np.zeros(NDOF), goal_q=np.ones(NDOF)):
+        lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
+        upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
+        bounds = ob.RealVectorBounds(NDOF)
+        for i in range(NDOF):
+            bounds.setLow(i,lower[i])
+            bounds.setHigh(i,upper[i])
 
-    lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
-    upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
-    bounds = ob.RealVectorBounds(NDOF)
-    for i in range(NDOF):
-        bounds.setLow(i,lower[i])
-        bounds.setHigh(i,upper[i])
+        self.space = ob.RealVectorStateSpace(NDOF)
+        self.space.setBounds(bounds)
 
-    space = ob.RealVectorStateSpace(NDOF)
-    space.setBounds(bounds)
+        # Construct a space information instance for this state space
+        self.si = ob.SpaceInformation(self.space)
 
-    # Construct a space information instance for this state space
-    si = ob.SpaceInformation(space)
+        # Set the object used to check which states in the space are valid
+        self.validityChecker = pbValidityChecker(self.si, [])
+        self.si.setStateValidityChecker(self.validityChecker)
+        self.si.setup()
 
-    # Set the object used to check which states in the space are valid
-    validityChecker = pbValidityChecker(si, [])
-    si.setStateValidityChecker(validityChecker)
+        self.runTime = 1.0
+        self.plannerType = 'RRTstar'
 
-    si.setup()
+    def plan(self, start_q, goal_q):
 
-    # assume start and goal configs
-    start = ob.State(space)
-    for i in range(len(start_q)):
-        start[i] = start_q[i]
+        # assume start and goal configs
+        start = ob.State(self.space)
+        for i in range(len(start_q)):
+            start[i] = start_q[i]
 
-    goal = ob.State(space)
-    for i in range(len(start_q)):
-        goal[i] = goal_q[i]
+        goal = ob.State(self.space)
+        for i in range(len(start_q)):
+            goal[i] = goal_q[i]
 
-    # Create a problem instance
-    pdef = ob.ProblemDefinition(si)
+        # Create a problem instance
+        pdef = ob.ProblemDefinition(self.si)
 
-    # Set the start and goal states
-    pdef.setStartAndGoalStates(start, goal)
+        # Set the start and goal states
+        pdef.setStartAndGoalStates(start, goal)
 
-    # Create the optimization objective specified by our command-line argument.
-    # This helper function is simply a switch statement.
-    # pdef.setOptimizationObjective(getPathLengthObjWithCostToGo(si))
-    pdef.setOptimizationObjective(getPathLengthObjective(si))
+        # Create the optimization objective specified by our command-line argument.
+        # This helper function is simply a switch statement.
+        # pdef.setOptimizationObjective(getPathLengthObjWithCostToGo(si))
+        pdef.setOptimizationObjective(getPathLengthObjective(self.si))
 
-    # Construct the optimal planner specified by our command line argument.
-    # This helper function is simply a switch statement.
-    optimizingPlanner = allocatePlanner(si, plannerType)
+        # Construct the optimal planner specified by our command line argument.
+        # This helper function is simply a switch statement.
+        optimizingPlanner = allocatePlanner(self.si, self.plannerType)
 
-    # Set the problem instance for our planner to solve
-    optimizingPlanner.setProblemDefinition(pdef)
-    optimizingPlanner.setup()
+        # Set the problem instance for our planner to solve
+        optimizingPlanner.setProblemDefinition(pdef)
+        optimizingPlanner.setup()
 
-    # attempt to solve the planning problem in the given runtime
-    solved = optimizingPlanner.solve(runTime)
+        # attempt to solve the planning problem in the given runtime
+        solved = optimizingPlanner.solve(self.runTime)
 
-    if solved:
-        # Output the length of the path found
-        print('{0} found solution of path length {1:.4f} with an optimization ' \
-            'objective value of {2:.4f}'.format( \
-            optimizingPlanner.getName(), \
-            pdef.getSolutionPath().length(), \
-            pdef.getSolutionPath().cost(pdef.getOptimizationObjective()).value()))
+        if solved:
+            # Output the length of the path found
+            print('{0} found solution of path length {1:.4f} with an optimization ' \
+                'objective value of {2:.4f}'.format( \
+                optimizingPlanner.getName(), \
+                pdef.getSolutionPath().length(), \
+                pdef.getSolutionPath().cost(pdef.getOptimizationObjective()).value()))
 
-        return pdef.getSolutionPath()
+            return pdef.getSolutionPath()
 
-    else:
-        print("No solution found.")
-        return None
+        else:
+            print("No solution found.")
+            return None
 
+def demo():
 
-def pbsetup():
-    # p.connect(p.GUI)
-    # p.connect(p.DIRECT)
-    p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    p.setGravity(0,0,-10)
+    planner = PbPlanner()
+    s = planner.validityChecker.sample_state()
+    g = planner.validityChecker.sample_state()
 
-    robotId = p.loadURDF(URDFPATH, useFixedBase=True)
-    planeId = p.loadURDF("plane.urdf")
-
-if __name__ == '__main__':
-    p.connect(p.DIRECT)
-    pbsetup()
-
-    lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
-    upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
-    bounds = ob.RealVectorBounds(NDOF)
-    for i in range(NDOF):
-        bounds.setLow(i,lower[i])
-        bounds.setHigh(i,upper[i])
-
-    space = ob.RealVectorStateSpace(NDOF)
-    space.setBounds(bounds)
-    si = ob.SpaceInformation(space)
-
-    validityChecker = pbValidityChecker(si, [])
-
-    s = validityChecker.sample_state()
-    g = validityChecker.sample_state()
-
-    result=plan(1.0, 'RRTstar',
-                start_q = s, goal_q = g)
-
+    # plan
+    result=planner.plan(s, g)
     p.disconnect()
 
+    # visualize plan
     p.connect(p.GUI)
     pbsetup()
 
@@ -215,3 +200,6 @@ if __name__ == '__main__':
 
     _=input('Press enter to exit ')
     p.disconnect()
+
+if __name__ == '__main__':
+    demo()

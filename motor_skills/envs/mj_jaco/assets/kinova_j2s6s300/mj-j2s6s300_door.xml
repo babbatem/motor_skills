@@ -71,7 +71,7 @@
                                 <site name="wrist_ft"/>
 
                                 <!-- for vis ee -->
-                                <body name="eetestx0" pos="0.1 0 0">
+                                <!-- <body name="eetestx0" pos="0.1 0 0">
                                   <geom size="0.1 0.01 0.01" type="box" rgba="1 0 0 1"/>
                                 </body>
                                 <body name="eetesty0" pos="0 0.1 0">
@@ -79,43 +79,43 @@
                                 </body>
                                 <body name="eetestz0" pos="0.0 0 0.1">
                                   <geom size="0.01 0.01 0.1" type="box" rgba="0 0 1 1"/>
-                                </body>
+                                </body> -->
 
 
                                 <body name="j2s6s300_link_finger_1"  pos="0.00279 0.03126 -0.11467" quat="0.379408 -0.662973 -0.245899 0.596699">
                                     <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                     <joint name="j2s6s300_joint_finger_1" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 1.51" />
                                     <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_proximal" />
-                                    <site name="proximal_sensor_site_1" type="box" rgba="1 0 0 0.1" size="0.1 0.1 0.1" pos="0.00 0 0"/>
+                                    <site name="proximal_sensor_site_1" type="box" rgba="1 0 0 0.0" size="0.1 0.1 0.1" pos="0.00 0 0"/>
                                     <body name="j2s6s300_link_finger_tip_1"  pos="0.044 -0.003 0">
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_1" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
-                                        <site name="distal_sensor_site_1" type="box" rgba="1 0 0 0.1" size="0.1 0.1 0.1" pos="0.00 0 0"/>
+                                        <site name="distal_sensor_site_1" type="box" rgba="1 0 0 0.0" size="0.1 0.1 0.1" pos="0.00 0 0"/>
                                     </body>
                                 </body>
                                 <body name="j2s6s300_link_finger_2"  pos="0.02226 -0.02707 -0.11482" quat="0.659653 -0.37146 0.601679 -0.254671">
                                     <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                     <joint name="j2s6s300_joint_finger_2" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 1.51" />
                                     <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_proximal" />
-                                    <site name="proximal_sensor_site_2" type="box" rgba="0 1 0 0.1" size="0.1 0.1 0.1" pos="0.00 0 0"/>
+                                    <site name="proximal_sensor_site_2" type="box" rgba="0 1 0 0.0" size="0.1 0.1 0.1" pos="0.00 0 0"/>
                                     <body name="j2s6s300_link_finger_tip_2"  pos="0.044 -0.003 0">
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_2" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
-                                        <site name="distal_sensor_site_2" type="box" rgba="0 1 0 0.1" size="0.1 0.1 0.1" pos="0.00 0 0"/>
+                                        <site name="distal_sensor_site_2" type="box" rgba="0 1 0 0.0" size="0.1 0.1 0.1" pos="0.00 0 0"/>
                                     </body>
                                 </body>
                                 <body name="j2s6s300_link_finger_3"  pos="-0.02226 -0.02707 -0.11482" quat="0.601679 -0.254671 0.659653 -0.37146">
                                     <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                     <joint name="j2s6s300_joint_finger_3" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 1.51" />
                                     <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_proximal" />
-                                    <site name="proximal_sensor_site_3" type="box" rgba="0 0 1 0.1" size="0.1 0.1 0.1" pos="0.0 0 0"/>
+                                    <site name="proximal_sensor_site_3" type="box" rgba="0 0 1 0.0" size="0.1 0.1 0.1" pos="0.0 0 0"/>
                                     <body name="j2s6s300_link_finger_tip_3"  pos="0.044 -0.003 0">
                                         <inertial pos="0.022 0 0" mass="0.01" diaginertia="7.89997e-07 7.89997e-07 8e-08" />
                                         <joint name="j2s6s300_joint_finger_tip_3" pos="0 0 0" axis="0 0 1" limited="false" damping="1.0" armature=".01" range="0 2" />
                                         <geom type="mesh" rgba="0.792157 0.819608 0.933333 1" mesh="finger_distal" />
-                                        <site name="distal_sensor_site_3" type="box" rgba="0 0 1 0.1" size="0.1 0.1 0.1" pos="0.00 0 0"/>
+                                        <site name="distal_sensor_site_3" type="box" rgba="0 0 1 0.0" size="0.1 0.1 0.1" pos="0.00 0 0"/>
                                     </body>
                                 </body>
                             </body>
@@ -156,13 +156,13 @@
   		<motor joint='j2s6s300_joint_finger_tip_3' 	name='j2s6s300_joint_finger_tip_3'  />
   	</actuator>
     <sensor>
-        <touch name="finger_1_base_sensor" site="proximal_sensor_site_1" />
-        <touch name="finger_2_base_sensor" site="proximal_sensor_site_2" />
-        <touch name="finger_3_base_sensor" site="proximal_sensor_site_3" />
-        <touch name="finger_1_tip_sensor" site="distal_sensor_site_1"/>
-        <touch name="finger_2_tip_sensor" site="distal_sensor_site_2"/>
-        <touch name="finger_3_tip_sensor" site="distal_sensor_site_3"/>
-        <force name="wrist_force" site="wrist_ft"/>
-        <torque name="wrist_torque" site="wrist_ft"/>
-    </sensor>
+       <touch name="finger_1_base_sensor" site="proximal_sensor_site_1" />
+       <touch name="finger_1_tip_sensor" site="distal_sensor_site_1"/>
+       <touch name="finger_2_base_sensor" site="proximal_sensor_site_2" />
+       <touch name="finger_2_tip_sensor" site="distal_sensor_site_2"/>
+       <touch name="finger_3_base_sensor" site="proximal_sensor_site_3" />
+       <touch name="finger_3_tip_sensor" site="distal_sensor_site_3"/>
+       <force name="wrist_force" site="wrist_ft"/>
+       <torque name="wrist_torque" site="wrist_ft"/>
+   </sensor>
   </mujoco>

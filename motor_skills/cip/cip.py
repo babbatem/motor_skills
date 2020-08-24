@@ -2,14 +2,24 @@ class CIP(object):
     """Composable Interaction Primitive"""
     def __init__(self):
         super(CIP, self).__init__()
-        
-    @property
-    def qpos(self):
+
+    def body():
         raise NotImplementedError
 
-    @property
-    def qvel(self):
+    def head():
         raise NotImplementedError
 
-    def get_action(self):
+    def init():
+        raise NotImplementedError
+
+    def effect():
+        raise NotImplementedError
+
+    def goal():
+        raise NotImplementedError
+
+    def learning_cost():
+        raise NotImplementedError
+
+    def learn_body():
         raise NotImplementedError

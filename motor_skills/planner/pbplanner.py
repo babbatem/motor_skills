@@ -8,7 +8,7 @@ from ompl import util as ou
 from ompl import base as ob
 from ompl import geometric as og
 
-from ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthObjWithCostToGo, getPathLengthObjective
+from motor_skills.planner.ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthObjWithCostToGo, getPathLengthObjective
 
 NDOF = 6
 URDFPATH='/home/abba/msu_ws/src/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'

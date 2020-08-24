@@ -126,7 +126,7 @@ class PbPlanner(object):
         self.si.setStateValidityChecker(self.validityChecker)
         self.si.setup()
 
-        self.runTime = 1.0
+        self.runTime = 5.0
         self.plannerType = 'RRTstar'
 
     def plan(self, start_q, goal_q):

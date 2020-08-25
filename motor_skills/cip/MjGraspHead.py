@@ -2,7 +2,7 @@ import time, copy
 
 import pickle
 import numpy as np
-from mujoco_py import cymj
+from mujoco_py import cymj, MjViewer
 from scipy.spatial.transform import Rotation as R
 
 import motor_skills.core.mj_control as mjc
@@ -33,12 +33,13 @@ class MjGraspHead(object):
 		executes a grasp in MuJoCo with the kinova j2s6s300
 	"""
 
-	def __init__(self, env, debug=False):
+	def __init__(self, sim, debug=False):
 		super(MjGraspHead, self).__init__()
 
-		self.env = env
-		self.sim = env.sim
+		self.sim = sim
 		self.debug = debug
+		if self.debug:
+			self.viewer=MjViewer(self.sim)
 
 		# % compute indices and per timestep delta q
 		self.delta = np.zeros(DOF)
@@ -51,7 +52,7 @@ class MjGraspHead(object):
 			self.delta[base_idx] = MAX_FINGER_DELTA/GRASP_STEPS
 			self.delta[tip_idx] = MAX_FINGER_DELTA/GRASP_STEPS
 
-	def pregrasp(self, env):
+	def pregrasp(self, sim):
 		"""
 			approaches object.
 			Moves to PREGRASP_GOAL in ee coordinates with constant orientation.
@@ -84,9 +85,9 @@ class MjGraspHead(object):
 			self.sim.forward()
 			self.sim.step()
 			if self.debug:
-				self.env.render()
+				self.viewer.render()
 
-	def execute(self, env):
+	def execute(self, sim):
 		"""
 			implements a naive grasping strategy.
 			closes fingers until they make contact, at which point they stop.
@@ -94,7 +95,7 @@ class MjGraspHead(object):
 		"""
 
 		# % approach
-		self.pregrasp(env)
+		self.pregrasp(sim)
 
 		# % close fingers
 		new_pos = copy.deepcopy(self.sim.data.qpos[:DOF])
@@ -119,7 +120,7 @@ class MjGraspHead(object):
 			self.sim.step()
 
 			if self.debug:
-				self.env.viewer.render()
+				self.viewer.render()
 
 
 if __name__ == '__main__':
@@ -156,8 +157,8 @@ if __name__ == '__main__':
 		# TODO: make sure we got there
 
 		# % grasp
-		head = MjGraspHead(env, debug=True)
-		head.execute(env)
+		head = MjGraspHead(env.sim, debug=True)
+		head.execute(env.sim)
 
 		# % hover at ee pose after.
 		obj_type = 1 # 3 for joint, 1 for body

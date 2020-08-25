@@ -1,4 +1,5 @@
 import time
+
 import copy
 import pathlib
 import pickle
@@ -10,122 +11,83 @@ import motor_skills.core.mj_control as mjc
 from mujoco_py import cymj
 from scipy.spatial.transform import Rotation as R
 
-THRESHOLD = np.pi / 2
+from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, dense_open_cost, door_open_success
 
 class MjJacoDoor(gym.Env):
-    """docstring for MjJacoDoor."""
+	"""
+		provides a standalone gym environment for the JacoDoor problem (opening)
+		also functions as a *base class* for CIP experiment environments.
+	"""
 
-    def __init__(self, vis=False, n_steps=int(1000)):
-        self.parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
-        self.vis=vis
-        self.fname = self.parent_dir_path + '/assets/kinova_j2s6s300/mj-j2s6s300_door.xml'
-        self.model = load_model_from_path(self.fname)
-        self.sim = MjSim(self.model)
-        self.viewer = MjViewer(self.sim) if self.vis else None
+	def __init__(self, vis=False, n_steps=int(1000)):
+		self.parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
+		self.vis=vis
+		self.fname = self.parent_dir_path + '/assets/kinova_j2s6s300/mj-j2s6s300_door.xml'
+		self.model = load_model_from_path(self.fname)
+		self.sim = MjSim(self.model)
+		self.viewer = MjViewer(self.sim) if self.vis else None
 
-        a_low = np.full(12, -float('inf'))
-        a_high = np.full(12, float('inf'))
-        self.action_space = gym.spaces.Box(a_low,a_high)
+		a_low = np.full(12, -float('inf'))
+		a_high = np.full(12, float('inf'))
+		self.action_space = gym.spaces.Box(a_low,a_high)
 
-        obs_space = self.model.nq + self.model.nsensordata
-        o_low = np.full(obs_space, -float('inf'))
-        o_high = np.full(obs_space, float('inf'))
-        self.observation_space=gym.spaces.Box(o_low,o_high)
-        self.env=self
-        self.n_steps = n_steps
+		obs_space = self.model.nq + self.model.nsensordata
+		o_low = np.full(obs_space, -float('inf'))
+		o_high = np.full(obs_space, float('inf'))
+		self.observation_space=gym.spaces.Box(o_low,o_high)
+		self.env=self
+		self.n_steps = n_steps
 
+	def model_reset(self):
+		# %% close gripper
+		for i in range(6):
+			self.sim.data.qpos[i+6]=0.0
 
-    def reset(self):
+		# %% close object
+		self.sim.data.qpos[-1]=0.0
+		self.sim.data.qpos[-2]=0.0
 
-        # pick a random start arm pose (DoFs 1-6)
-        start_pose_file = open(self.parent_dir_path + "/assets/MjJacoDoorGrasps", 'rb')
-        self.start_poses = pickle.load(start_pose_file)
-        idx = np.random.randint(len(self.start_poses))
-        # self.sim.data.qpos[:6]=self.start_poses[idx]
-        self.sim.data.qpos[:6] = self.start_poses[8]
-        self.sim.step()
+		# %% gravity comp
+		for i in range(len(self.sim.data.ctrl)):
+			self.sim.data.qfrc_applied[i]=self.sim.data.qfrc_bias[i]
 
-        # TODO: close the gripper here
-        # a heuristic strategy: close fingers until the first link is in contact.
-        # then close finger tips in the same fashion
+	def reset(self):
+		self.model_reset()
 
-        ee_index = 6
-        # old = self.sim.data.body_xpos[ee_index].copy()
-        # qpos_offset = np.zeros(12)
-        # qpos_offset[:6] = [-0.123224540, .121126694, .129906782, -0.0438253357, -0.00798207077, -0.0000539686959]
-        # qpos_goal = self.sim.data.qpos[:12] + qpos_offset
-        # global_goal = np.zeros(6)
-        ee_frame_goal = [0.03461422, 0.02575592, -0.00387646] + self.sim.data.body_xpos[ee_index]
-        ee_frame_goal = np.append(ee_frame_goal, 1)
-        rot_mat = R.from_quat(self.sim.data.body_xquat)
-        trans_mat = np.zeros([4,4])
-        trans_mat[:3,:3] = rot_mat.as_dcm()[ee_index]
-        trans_mat[3,:3] = 0
-        trans_mat[3,3] = 1
-        trans_mat[:3,3] = self.sim.data.body_xpos
-        world_goal = np.matmul(trans_mat, ee_frame_goal)[:3]
-        # print(global_goal)
+		# %% sample random (valid) 6DoF pose, set it, step.
+		sample_random_pose(self.sim, self.model)
 
-        for t in range(1000):
-            self.sim.data.ctrl[:] = mjc.ee_regulation(world_goal, self.sim, ee_index, kp=None, kv=None, ndof=12)
-            self.sim.step()
-            self.sim.forward()
-            self.viewer.render()
+		obs = np.concatenate( [self.sim.data.qpos, self.sim.data.sensordata] )
+		self.elapsed_steps=0
+		return obs
 
-        # print('Diff: ' + str(self.sim.data.body_xpos[ee_index] - old))
-        obj_type = 3 # 3 for joint, 1 for body
-        joint_idxs = np.array([])
-        offset = np.zeros(12)
-        for i in range(1,4):
-            base_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_" + str(i))
-            tip_idx = cymj._mj_name2id(self.sim.model, obj_type,"j2s6s300_joint_finger_tip_" + str(i))
-            offset[base_idx] = 2
-            offset[tip_idx] = 2
-            new_pos = self.sim.data.qpos[:12] + offset
+	def step(self, action):
+		"""
+			interprets action as torque input; performs gravity comp.
+			returns binary reward based on threshold.
+		"""
 
-        self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
+		for i in range(len(action)):
+			self.sim.data.ctrl[i]=action[i]+self.sim.data.qfrc_bias[i]
 
-        for t in range(5000):
-            self.sim.forward()
-            self.sim.step()
-            self.viewer.render()
-            touched = np.where(self.sim.data.sensordata != 0.0)
-            if len(touched) == len(self.sim.data.sensordata):
-                break
-            current_pos = self.sim.data.qpos
-            for touch_point in touched:
-                new_pos[touch_point] = current_pos[touch_point]
-            self.sim.data.ctrl[:] = mjc.pd([0] * 12, [0] * 12, new_pos, self.sim, ndof=12)
+		self.sim.forward()
+		self.sim.step()
+		self.render() if self.vis else None
 
-        # reset the object
-        self.sim.data.qpos[-1]=0.0
-        self.sim.data.qpos[-2]=0.0
+		reward = door_opening_success(self.sim)
 
-        self.elapsed_steps=0
-        obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
-        return obs
+		info={'goal_achieved': reward}
 
-    def step(self, action):
+		done = self.elapsed_steps == (self.n_steps - 1)
 
-        # TODO: failure predicate here
-        # if contact is lost for some number of timesteps, exit and return -1
-        # this might lead to a policy that doesn't do anything if reward is too sparse
-        # we ought to give this some more thought.
+		obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
 
-        for i in range(len(action)):
-            self.sim.data.ctrl[i]=action[i]+self.sim.data.qfrc_bias[i]
+		self.elapsed_steps+=1
+		return obs, reward, done, info
 
-        self.sim.forward()
-        self.sim.step()
-        self.viewer.render() if self.vis else None
-
-        reward = self.sim.data.qpos[-2] > THRESHOLD
-
-        info={'goal_achieved': reward}
-
-        done = self.elapsed_steps == (self.n_steps - 1)
-
-        obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
-
-        self.elapsed_steps+=1
-        return obs, reward, done, info
+	def render(self):
+		try:
+			self.viewer.render()
+		except Exception as e:
+			self.viewer = MjViewer(self.sim)
+			self.viewer.render()

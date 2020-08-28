@@ -39,17 +39,10 @@ class MjJacoDoor(gym.Env):
 		self.n_steps = n_steps
 
 	def model_reset(self):
-		# %% close gripper
-		for i in range(6):
-			self.sim.data.qpos[i+6]=0.0
 
 		# %% close object
 		self.sim.data.qpos[-1]=0.0
 		self.sim.data.qpos[-2]=0.0
-
-		# %% gravity comp
-		for i in range(len(self.sim.data.ctrl)):
-			self.sim.data.qfrc_applied[i]=self.sim.data.qfrc_bias[i]
 
 	def reset(self):
 		self.model_reset()

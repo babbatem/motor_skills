@@ -1,56 +1,68 @@
-import numpy as np
-import pickle
+import copy
 
+import pickle
+import numpy as np
+
+import motor_skills.core.mj_control as mjc
 from motor_skills.cip.ImpedanceCIP import ImpedanceCIP
 from motor_skills.cip.MjGraspHead import MjGraspHead
-import motor_skills.envs.mj_jaco.mj_cip_utils as utils
+from motor_skills.envs.mj_jaco import mj_cip_utils as utils
 
 GPD_POSES_PATH = "/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps"
 
 class MjDoorCIP(ImpedanceCIP):
-    """
-        Implements the particular CIP for solving MjJacoDoorImpedanceCIPs gym environment.
-        inherits from ImpedanceCIP, which implements only get_action.
-        possesses a MjDoorHead object which serves as a grasping module.
+	"""
+		Implements the particular CIP for solving MjJacoDoorImpedanceCIPs gym environment.
+		inherits from ImpedanceCIP, which implements only get_action.
+		possesses a MjDoorHead object which serves as a grasping module.
 
-        no motion generation happens.
-        to reset, the agent samples a grasp pose and is teleported there.
-    """
+		no motion generation happens.
+		to reset, the agent samples a grasp pose and is teleported there.
+	"""
 
-    def __init__(self, controller_file, sim):
-        super(MjDoorCIP, self).__init__(controller_file, sim)
-        grasp_file = open(GPD_POSES_PATH, 'rb')
-        self.grasp_qs = pickle.load(grasp_file)
-        self.head = MjGraspHead(self.sim, debug=False)
+	def __init__(self, controller_file, sim):
+		super(MjDoorCIP, self).__init__(controller_file, sim)
+		grasp_file = open(GPD_POSES_PATH, 'rb')
+		self.grasp_qs = pickle.load(grasp_file)
+		self.head = MjGraspHead(self.sim, debug=False)
 
-        self.sim = self.sim
+		self.sim = self.sim
 
-    def success_predicate(self):
-        return utils.door_open_success(self.sim)
+	def success_predicate(self):
+		return utils.door_open_success(self.sim)
 
-    def learning_cost(self):
-        return utils.dense_open_cost(self.sim)
+	def learning_cost(self):
+		return utils.dense_open_cost(self.sim)
 
-    def execute_head(self):
-        self.head.execute(self.sim)
+	def execute_head(self):
+		self.head.execute(self.sim)
 
-    def sample_init_set(self):
+	def sample_init_set(self):
 
-        # TODO: these are in joint space, eventually want ee pose.
-        idx = np.random.randint(len(self.grasp_qs))
-		g = grasp_qs[idx]
+		# TODO: these are in joint space, eventually want ee pose.
+		idx = np.random.randint(len(self.grasp_qs))
+		g = self.grasp_qs[idx]
 		return g
 
-    def learning_reset(self):
+	def learning_reset(self):
 
-        # % sample a state from init set
-        grasp_config = self.sample_init_set()
+		# % sample a state from init set
+		grasp_config = self.sample_init_set()
 
-        # % set qpos to that state (e.g. assume perfect execution)
-        self.sim.data.qpos[:6] = grasp_config
-        self.sim.qfrc_applied[:12] = self.sim.qfrc_bias[:12]
-        self.sim.step()
+		# % set qpos to that state (e.g. assume perfect execution)
+		self.sim.data.qpos[:6] = grasp_config
+		self.sim.data.qvel[:6] = [0.0]*6
 
-        # % execute the grasp
-        self.execute_head()
-        return
+		# % open gripper
+		self.sim.data.qpos[6:12] = [0.0]*6
+		self.sim.data.qvel[6:12] = [0.0]*6
+
+		# % compute a torque command to stabilize about this point.
+		full_qpos = copy.deepcopy(self.sim.data.qpos[:12])
+		torque = mjc.pd(None, [0.0]*12, full_qpos, self.sim, ndof=12, kp=np.eye(12)*300, kv=np.eye(12)*500)
+		self.sim.data.ctrl[:]=torque
+		self.sim.forward()
+
+		# % execute the grasp
+		self.execute_head()
+		return

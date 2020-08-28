@@ -11,7 +11,7 @@ import motor_skills.core.mj_control as mjc
 from mujoco_py import cymj
 from scipy.spatial.transform import Rotation as R
 
-from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, dense_open_cost, door_open_success
+from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, door_open_success
 
 class MjJacoDoor(gym.Env):
 	"""

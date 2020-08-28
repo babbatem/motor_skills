@@ -12,7 +12,7 @@ from mujoco_py import cymj
 from scipy.spatial.transform import Rotation as R
 
 from motor_skills.cip.ImpedanceCIP import ImpedanceCIP
-from motor_skills.env.mj_jaco.MjJacoDoor
+from motor_skills.envs.mj_jaco.MjJacoDoor import MjJacoDoor
 
 class MjJacoDoorCIPBase(MjJacoDoor):
 	"""

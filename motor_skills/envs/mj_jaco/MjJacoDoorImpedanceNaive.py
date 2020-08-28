@@ -1,5 +1,5 @@
 from motor_skills.cip.EndToEndCIP import EndToEndCIP
-from motor_skills.env.mj_jaco.MjJacoDoorCIPBase import MjJacoDoorCIPBase
+from motor_skills.envs.mj_jaco.MjJacoDoorCIPBase import MjJacoDoorCIPBase
 
 
 class MjJacoDoorImpedanceNaive(MjJacoDoorCIPBase):

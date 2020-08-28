@@ -1,5 +1,5 @@
 from motor_skills.cip.ImpedanceCIP import ImpedanceCIP
-import motor_skills.envs.mj_jaco.mj_cip_utils as utils
+from motor_skills.envs.mj_jaco import mj_cip_utils as utils
 
 class EndToEndCIP(ImpedanceCIP):
     def __init__(self, controller_file, sim):
@@ -12,13 +12,13 @@ class EndToEndCIP(ImpedanceCIP):
             This agent starts in a random pose, attempts to open the door.
 
         """
-        super(ImpedanceCIP, self).__init__(controller_file, sim)
+        super(EndToEndCIP, self).__init__(controller_file, sim)
 
     def success_predicate(self):
         return utils.door_open_success(self.sim)
 
     def learning_cost(self):
-        return utils.dense_open_cost(self.sim)
+        return utils.dense_opening_cost(self.sim)
 
     def learning_reset(self):
-        utils.sample_random_pose()
+        utils.sample_random_pose(self.sim, self.sim.model)

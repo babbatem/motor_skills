@@ -35,7 +35,7 @@ def door_open_success(sim):
 def door_closed_success(sim):
     return sim.data.qpos[-2] <= (DOOR_GOAL_CLOSED + EPSILON)
 
-def dense_opening_cost(sim):
+def dense_open_cost(sim):
     gripper_idx = cymj._mj_name2id(sim.model, 1, "j2s6s300_link_6")
     handle_idx  = cymj._mj_name2id(sim.model, 1, "latch")
     gripper_handle_displacement = sim.data.body_xpos[gripper_idx] - \

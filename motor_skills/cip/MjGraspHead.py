@@ -17,17 +17,6 @@ GRASP_STEPS = 500
 MAX_FINGER_DELTA=1.3
 GPD_POSES_PATH = "/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps"
 
-def seed_properly(seed_value=123):
-
-	import os
-	os.environ['PYTHONHASHSEED']=str(seed_value)
-
-	import random
-	random.seed(seed_value)
-
-	import numpy as np
-	np.random.seed(seed_value)
-
 class MjGraspHead(object):
 	"""
 		executes a grasp in MuJoCo with the kinova j2s6s300
@@ -97,6 +86,11 @@ class MjGraspHead(object):
 		# % approach
 		self.pregrasp(sim)
 
+		# % reset the door
+		# % reset door
+		for i in range(2):
+			sim.data.qpos[DOF+i]=0.0
+
 		# % close fingers
 		new_pos = copy.deepcopy(self.sim.data.qpos[:DOF])
 		for t in range(GRASP_STEPS):
@@ -122,13 +116,25 @@ class MjGraspHead(object):
 			if self.debug:
 				self.viewer.render()
 
+def seed_properly(seed_value=123):
 
-if __name__ == '__main__':
-	from motor_skills.envs.mj_jaco import MjJacoDoorImpedance
+	import os
+	os.environ['PYTHONHASHSEED']=str(seed_value)
+
+	import random
+	random.seed(seed_value)
+
+	import numpy as np
+	np.random.seed(seed_value)
+
+def plan_and_grasp_test():
+	from motor_skills.envs.mj_jaco import MjJacoDoorImpedanceCIP
 	from motor_skills.cip.pbplannerWrapper import pbplannerWrapper
 
-	seed_properly(123)
+	seed = 122
 	while True:
+		seed+=1
+		seed_properly(seed)
 
 		debug = True
 
@@ -136,7 +142,7 @@ if __name__ == '__main__':
 		grasp_file = open(GPD_POSES_PATH, 'rb')
 		grasp_qs = pickle.load(grasp_file)
 
-		env = MjJacoDoorImpedance(vis=True)
+		env = MjJacoDoorImpedanceCIP(vis=True)
 		env.reset()
 
 		# random state sample
@@ -176,3 +182,63 @@ if __name__ == '__main__':
 
 			if debug:
 				env.render()
+
+def grasp_only_test():
+	from motor_skills.envs.mj_jaco import MjJacoDoor
+
+	seed = 122
+	while True:
+		seed+=1
+		seed_properly(seed)
+
+		debug = True
+
+		grasp_file = open(GPD_POSES_PATH, 'rb')
+		grasp_qs = pickle.load(grasp_file)
+
+		env = MjJacoDoor(vis=True)
+		env.reset()
+
+		idx = np.random.randint(len(grasp_qs))
+		s = grasp_qs[idx]
+		env.sim.data.qpos[:6] = s
+		env.sim.data.qpos[6:12] = [0.0]*6
+		env.sim.data.qvel[:6]=[0.0]*6
+
+		full_qpos = copy.deepcopy(env.sim.data.qpos[:12])
+		torque = mjc.pd(None, [0.0]*12, full_qpos, env.sim, ndof=12, kp=np.eye(12)*300)
+		env.sim.data.ctrl[:]=torque
+		env.sim.step()
+		env.render()
+
+		time.sleep(2.0)
+
+		# % reset door
+		for i in range(2):
+			env.sim.data.qpos[DOF+i]=0.0
+
+		# % grasp
+		head = MjGraspHead(env.sim, debug=True)
+		head.execute(env.sim)
+
+		# % hover at ee pose after.
+		obj_type = 1 # 3 for joint, 1 for body
+		body_idx = cymj._mj_name2id(env.sim.model, obj_type, "j2s6s300_link_6")
+		xpos = env.sim.data.body_xpos[body_idx]
+		xquat = env.sim.data.body_xquat[body_idx]
+		for t in range(100):
+
+			env.sim.data.ctrl[:] = mjc.ee_reg2(xpos,
+											   xquat,
+											   env.sim,
+											   body_idx,
+											   kp=np.eye(3)*300, kv=None, ndof=12)
+			env.sim.step()
+
+			if debug:
+				env.render()
+
+
+if __name__ == '__main__':
+	# plan_and_grasp_test()
+	grasp_only_test()

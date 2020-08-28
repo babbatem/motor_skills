@@ -9,6 +9,22 @@ import time as timer
 logging.disable(logging.CRITICAL)
 
 
+def get_env(env):
+
+    # get the correct env behavior
+    if type(env) == str:
+        env = GymEnv(env)
+    elif isinstance(env, GymEnv):
+        env = env
+    elif callable(env):
+        env = env(**env_kwargs)
+    else:
+        print("Unsupported environment format")
+        raise AttributeError
+
+    return env
+
+
 # Single core rollout to sample trajectories
 # =======================================================
 def do_rollout(
@@ -31,35 +47,25 @@ def do_rollout(
     :return:
     """
 
-    # get the correct env behavior
-    if type(env) == str:
-        env = GymEnv(env)
-    elif isinstance(env, GymEnv):
-        env = env
-    elif callable(env):
-        env = env(**env_kwargs)
-    else:
-        print("Unsupported environment format")
-        raise AttributeError
-
-
-    # REAL HOT FIX
-    # env = GymEnv('kuka_gym:KukaDrawer-v0')
-    # env=GymEnv(os.environ['GYM_ENV'])
+    env_made=get_env(env)
 
     if base_seed is not None:
-        env.set_seed(base_seed)
+        env_made.set_seed(base_seed)
         np.random.seed(base_seed)
     else:
         np.random.seed()
-    horizon = min(horizon, env.horizon)
+    horizon = min(horizon, env_made.horizon)
     paths = []
 
     for ep in range(num_traj):
+
+        del env_made
+        env_made=get_env(env)
+
         # seeding
         if base_seed is not None:
             seed = base_seed + ep
-            env.set_seed(seed)
+            env_made.set_seed(seed)
             np.random.seed(seed)
 
         observations=[]
@@ -68,7 +74,7 @@ def do_rollout(
         agent_infos = []
         env_infos = []
 
-        o = env.reset()
+        o = env_made.reset()
         done = False
         t = 0
 
@@ -76,8 +82,8 @@ def do_rollout(
             a, agent_info = policy.get_action(o)
             if eval_mode:
                 a = agent_info['evaluation']
-            env_info_base = env.get_env_infos()
-            next_o, r, done, env_info_step = env.step(a)
+            env_info_base = env_made.get_env_infos()
+            next_o, r, done, env_info_step = env_made.step(a)
             # below is important to ensure correct env_infos for the timestep
             env_info = env_info_step if env_info_base == {} else env_info_base
             observations.append(o)
@@ -106,7 +112,7 @@ def do_rollout(
             terminated=done
         )
         paths.append(path)
-    del(env)
+    del(env_made)
     return paths
 
 

@@ -1,5 +1,6 @@
 import time, copy
 
+import pathlib
 import pickle
 import numpy as np
 from mujoco_py import cymj, MjViewer
@@ -15,7 +16,9 @@ PREGRASP_STEPS = 500
 PREGRASP_GOAL = [0, -0.01, -0.04]
 GRASP_STEPS = 500
 MAX_FINGER_DELTA=1.3
-GPD_POSES_PATH = "/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps"
+
+parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
+GPD_POSES_PATH = parent_dir_path + "../envs/mj_jaco/assets/MjJacoDoorGrasps"
 
 class MjGraspHead(object):
 	"""

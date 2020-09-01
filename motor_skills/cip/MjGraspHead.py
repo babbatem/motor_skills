@@ -18,7 +18,7 @@ GRASP_STEPS = 500
 MAX_FINGER_DELTA=1.3
 
 parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
-GPD_POSES_PATH = parent_dir_path + "../envs/mj_jaco/assets/MjJacoDoorGrasps"
+GPD_POSES_PATH = parent_dir_path + "/../envs/mj_jaco/assets/MjJacoDoorGrasps"
 
 class MjGraspHead(object):
 	"""

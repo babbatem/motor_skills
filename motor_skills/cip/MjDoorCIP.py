@@ -8,7 +8,8 @@ from motor_skills.cip.ImpedanceCIP import ImpedanceCIP
 from motor_skills.cip.MjGraspHead import MjGraspHead
 from motor_skills.envs.mj_jaco import mj_cip_utils as utils
 
-GPD_POSES_PATH = "/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps"
+parent_dir_path = str(pathlib.Path(__file__).parent.absolute())
+GPD_POSES_PATH = parent_dir_path + "../envs/mj_jaco/assets/MjJacoDoorGrasps"
 
 class MjDoorCIP(ImpedanceCIP):
 	"""

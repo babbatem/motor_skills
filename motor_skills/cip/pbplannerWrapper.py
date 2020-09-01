@@ -77,15 +77,22 @@ class pbplannerWrapper(object):
 
 if __name__ == '__main__':
 
-	from motor_skills.envs.mj_jaco import MjJacoDoorImpedance
+	from motor_skills.envs.mj_jaco import MjJacoDoorImpedanceNaive
 
 	wrap = pbplannerWrapper(debug=True)
 	g = wrap.planner.validityChecker.sample_state()
+	s = wrap.planner.validityChecker.sample_state()
 
-	env = MjJacoDoorImpedance(vis=True)
+	env = MjJacoDoorImpedanceNaive(vis=True)
 	env.reset()
 
-	s = copy.deepcopy(env.sim.data.qpos[:6])
+	env.sim.data.qpos[:6]=s
+	torques=mjc.pd(None, [0.0]*6, s, env.sim,
+				   ndof=6, kp=np.eye(6)*300, kv=np.eye(6)*150)
+	env.sim.data.ctrl[:6]=torques
+	env.sim.step()
+	env.render()
+
 	wrap.plan(s, g)
 	wrap.execute(env)
 

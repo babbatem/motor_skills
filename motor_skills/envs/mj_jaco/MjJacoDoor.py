@@ -11,7 +11,9 @@ import motor_skills.core.mj_control as mjc
 from mujoco_py import cymj
 from scipy.spatial.transform import Rotation as R
 
-from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, door_open_success
+from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, door_open_success, seed_properly
+
+
 
 class MjJacoDoor(gym.Env):
 	"""
@@ -37,6 +39,9 @@ class MjJacoDoor(gym.Env):
 		self.observation_space=gym.spaces.Box(o_low,o_high)
 		self.env=self
 		self.n_steps = n_steps
+
+	def set_seed(self, seed):
+		seed_properly(seed)
 
 	def model_reset(self):
 

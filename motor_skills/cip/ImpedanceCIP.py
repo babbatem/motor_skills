@@ -47,12 +47,15 @@ class ImpedanceCIP(CIP):
         # %% apply delta on policy step; otherwise, let it be
         if policy_step:
             self.grp_target = copy.deepcopy(self.sim.data.qpos[:len(self.sim.data.ctrl)])
-            self.grp_target[self.grp_idx]+=gripper_action
+            self.grp_target[self.grp_idx]+=gripper_action / 1e2
 
         gripper_torques = mjc.pd(None,
                                  np.zeros(len(self.sim.data.ctrl)),
                                  self.grp_target,
-                                 self.sim)
+                                 self.sim,
+                                 kp=np.eye(12)*300,
+                                 kv=np.eye(12)*150)
+
         gripper_torques=gripper_torques[self.grp_idx]
 
         # TODO: safety constraints here.

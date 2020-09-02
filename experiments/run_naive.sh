@@ -3,7 +3,7 @@
 #SBATCH --time=4:00:00
 
 #SBATCH -N 1
-#SBATCH -c 4
+#SBATCH -c 8
 #SBATCH -J naive-learn
 #SBATCH --mem=8G
 

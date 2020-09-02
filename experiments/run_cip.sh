@@ -13,4 +13,4 @@
 cd /users/babbatem/
 source .bashrc
 cd motor_skills
-python my_job_script.py --output experiments/cip/%j --config experiments/cip-learning-config.txt
+python3 my_job_script.py --output experiments/cip/%j --config experiments/cip-learning-config.txt

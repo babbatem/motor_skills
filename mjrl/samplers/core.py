@@ -93,15 +93,6 @@ def do_rollout(
             env_infos.append(env_info)
             o = next_o
             t += 1
-        print(sum(rewards)/1e5)
-        # print('---')
-        # print('rewards[0]: ' + str(rewards[0]))
-        # print('rewards[-1]: ' + str(rewards[-1]))
-        # print('np.sum(rewards): ' + str(np.sum(rewards)))
-        # print('final obj state: ' + str(p.getJointState(env.env.cabinetUid,0)[0]))
-        # print('---')
-        # import sys
-        # sys.exit()
 
         path = dict(
             observations=np.array(observations),

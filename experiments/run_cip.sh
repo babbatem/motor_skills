@@ -12,5 +12,7 @@
 
 cd /users/babbatem/
 source .bashrc
+source load_mods.sh
+
 cd motor_skills
-python3 my_job_script.py --output experiments/cip/%j --config experiments/cip-learning-config.txt
+python3 my_job_script.py --output experiments/cip/dev --config experiments/cip-learning-config.txt

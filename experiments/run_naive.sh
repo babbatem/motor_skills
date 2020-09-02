@@ -12,5 +12,6 @@
 
 cd /users/babbatem/
 source .bashrc
+source load_mods.sh
 cd motor_skills
-python3 my_job_script.py --output experiments/naive/%j --config experiments/naive-learning-config.txt
+python3 my_job_script.py --output experiments/naive/dev --config experiments/naive-learning-config.txt

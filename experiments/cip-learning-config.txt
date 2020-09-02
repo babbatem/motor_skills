@@ -5,7 +5,7 @@
 'env'           :   'motor_skills:mj_jaco_door_cip-v0',
 'algorithm'     :   'NPG',
 'seed'          :   123,
-'num_cpu'       :   8,
+'num_cpu'       :   4,
 'save_freq'     :   5,
 'eval_rollouts' :   25,
 'exp_notes'     :   'Example config for training policy using DAPG for the relocate-v0 task.',

@@ -4,8 +4,8 @@ def compute_returns(paths, gamma):
     for path in paths:
         path["returns"] = discount_sum(path["rewards"], gamma)
 
-def compute_advantages(paths, baseline, gamma, gae_lambda=None, normalize=False):
-    # compute and store returns, advantages, and baseline 
+def compute_advantages(paths, baseline, gamma, gae_lambda=None, normalize=True):
+    # compute and store returns, advantages, and baseline
     # standard mode
     if gae_lambda == None or gae_lambda < 0.0 or gae_lambda > 1.0:
         for path in paths:

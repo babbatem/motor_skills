@@ -9,9 +9,9 @@ HANDLE_GOAL_OPEN = np.pi / 2
 DOOR_GOAL_CLOSED = 0.0
 HANDLE_GOAL_CLOSED = 0.0
 EPSILON = 1e-2
-DOOR_WEIGHT = 100
-HANDLE_WEIGHT = 10
-GRASP_WEIGHT = 10
+DOOR_WEIGHT = 0
+HANDLE_WEIGHT = 100
+GRASP_WEIGHT = 0
 
 def sample_random_pose(sim, model):
 
@@ -41,8 +41,8 @@ def door_closed_success(sim):
 def dense_open_cost(sim):
     gripper_idx = cymj._mj_name2id(sim.model, 1, "j2s6s300_link_6")
     handle_idx  = cymj._mj_name2id(sim.model, 1, "latch")
-    gripper_handle_displacement = sim.data.body_xpos[gripper_idx] - \
-                    sim.data.body_xpos[handle_idx]
+    gripper_handle_displacement = np.array(sim.data.body_xpos[gripper_idx]) - \
+                    		      np.array(sim.data.body_xpos[handle_idx])
 
     gripper_handle_distance = np.linalg.norm(gripper_handle_displacement)
     cost = DOOR_WEIGHT*(DOOR_GOAL_OPEN - sim.data.qpos[-2])**2 + \
@@ -63,7 +63,6 @@ def dense_closing_cost(sim):
     return cost
 
 def seed_properly(seed_value):
-
 	os.environ['PYTHONHASHSEED']=str(seed_value)
 	random.seed(seed_value)
 	np.random.seed(seed_value)

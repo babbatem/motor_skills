@@ -40,7 +40,7 @@ class MjJacoDoor(gym.Env):
 		self.env=self
 		self.n_steps = n_steps
 
-	def set_seed(self, seed):
+	def seed(self, seed):
 		seed_properly(seed)
 
 	def model_reset(self):

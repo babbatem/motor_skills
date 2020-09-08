@@ -13,7 +13,7 @@ def get_env(env):
 
     # get the correct env behavior
     if type(env) == str:
-        env = GymEnv(env)
+        env = GymEnv(env, vis=False)
     elif isinstance(env, GymEnv):
         env = env
     elif callable(env):

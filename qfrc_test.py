@@ -4,7 +4,6 @@ import numpy as np
 import copy
 import motor_skills
 import motor_skills.core.mj_control as mjc
-from motor_skills.envs.mj_jaco import MjJacoEnv, MjJacoDoor
 
 from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer

@@ -1,3 +1,6 @@
+import os
+import random
+
 import numpy as np
 from mujoco_py import cymj
 
@@ -59,13 +62,8 @@ def dense_closing_cost(sim):
          GRASP_WEIGHT*(gripper_handle_distance)
     return cost
 
-def seed_properly(seed_value=123):
+def seed_properly(seed_value):
 
-	import os
 	os.environ['PYTHONHASHSEED']=str(seed_value)
-
-	import random
 	random.seed(seed_value)
-
-	import numpy as np
 	np.random.seed(seed_value)

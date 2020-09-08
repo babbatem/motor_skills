@@ -34,7 +34,7 @@ class MjDoorCIP(ImpedanceCIP):
 		return utils.door_open_success(self.sim)
 
 	def learning_cost(self, sim):
-		return utils.dense_open_cost(sim) - 500.0
+		return utils.dense_open_cost(sim)
 
 	def execute_head(self):
 		self.head.execute(self.sim)

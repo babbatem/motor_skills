@@ -65,7 +65,8 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		# % reset cip for start of learning
 		self.cip.learning_reset()
 
-		obs = np.concatenate( [self.sim.data.qpos, self.sim.data.sensordata] )
+		obs = np.concatenate( [copy.deepcopy(self.sim.data.qpos),
+							   copy.deepcopy(self.sim.data.sensordata] )
 		self.elapsed_steps=0
 		return obs
 
@@ -86,12 +87,8 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 			self.elapsed_steps+=1
 
 		self.viewer.render() if self.vis else None
-
-		# % TODO: revisit this, how will CIP compute me?
-		# % 	from states...?
-		reward = -1*self.cip.learning_cost()
-		info={'goal_achieved': self.cip.success_predicate() }
-
+		reward = -1*self.cip.learning_cost(self.sim)
 		done = self.elapsed_steps >= (self.n_steps - 1)
-		obs = np.concatenate([self.sim.data.qpos, self.sim.data.sensordata])
+		obs = np.concatenate( [copy.deepcopy(self.sim.data.qpos),
+							   copy.deepcopy(self.sim.data.sensordata] )
 		return obs, reward, done, info

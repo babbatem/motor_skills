@@ -17,8 +17,8 @@ class EndToEndCIP(ImpedanceCIP):
     def success_predicate(self):
         return utils.door_open_success(self.sim)
 
-    def learning_cost(self):
-        return utils.dense_open_cost(self.sim) - 500.0
+    def learning_cost(self, sim):
+        return utils.dense_open_cost(sim) - 500.0
 
     def learning_reset(self):
         utils.sample_random_pose(self.sim, self.sim.model)

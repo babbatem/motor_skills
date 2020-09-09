@@ -86,7 +86,7 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 			policy_step = False
 			self.elapsed_steps+=1
 
-		info={}
+		info={'success': self.sim.data.qpos[-1] > np.pi / 4.0 }
 		self.viewer.render() if self.vis else None
 		reward = -1*self.cip.learning_cost(self.sim)
 		done = self.elapsed_steps >= (self.n_steps - 1)

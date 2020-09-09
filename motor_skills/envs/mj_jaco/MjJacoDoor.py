@@ -74,7 +74,7 @@ class MjJacoDoor(gym.Env):
 
 		reward = door_opening_success(self.sim)
 
-		info={'goal_achieved': reward}
+		info={'solved': reward}
 
 		done = self.elapsed_steps == (self.n_steps - 1)
 
@@ -89,3 +89,18 @@ class MjJacoDoor(gym.Env):
 		except Exception as e:
 			self.viewer = MjViewer(self.sim)
 			self.viewer.render()
+
+	def evaluate_success(self, paths, logger=None):
+		success = 0.0
+		for p in paths:
+			if p['env_infos']['success'][-1]:
+				success += 1.0
+		success_rate = 100.0*success/len(paths)
+		if logger is None:
+			# nowhere to log so return the value
+			return success_rate
+		else:
+			# log the success
+			# can log multiple statistics here if needed
+			logger.log_kv('success_rate', success_rate)
+			return None

@@ -1,9 +1,8 @@
-# motor_skills
-controllers and environments!
+# CIPs
+aka "The Project Formerly Known As Motor Skill Units"
 
 # installation
-1. install mujoco and mujoco_py using these [instructions](https://github.com/openai/mujoco-py). Note that we have a lab license and I will email you the access key.
-2. python setup.py install 
+1. install mujoco and mujoco_py using these [instructions](https://github.com/openai/mujoco-py). 
+2. pip install -r requirements.txt
+2. python setup.py install (or add root of the repo to pythonpath, so imports work)
 
-# usage
-see basic_example.py for minimal example; see motor_skills/core/mj_control.py for implementation of pd controller, to start.

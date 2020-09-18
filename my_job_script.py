@@ -99,6 +99,10 @@ print("========================================")
 print("Starting reinforcement learning phase")
 print("========================================")
 
+
+print()
+print(job_data['env_kwargs'])
+print()
 ts = timer.time()
 train_agent(job_name=JOB_DIR,
             agent=rl_agent,

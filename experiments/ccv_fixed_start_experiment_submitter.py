@@ -57,7 +57,7 @@ def get_config_file_npg():
 # general inputs
 
 'env'           :   '%s',
-'env_kwargs'    :   '%s',
+'env_kwargs'    :   %s,
 'algorithm'     :   'NPG',
 'seed'          :   %i,
 'num_cpu'       :   3,
@@ -105,12 +105,24 @@ def main(args):
 						   }
 	full_env_name = full_env_names_dict[args.env]
 
-	os.makedirs('/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
-	config_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
-	output_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
-	os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
-	os.makedirs(config_root, exist_ok=True)
-	os.makedirs(output_root, exist_ok=True)
+	try:
+		os.makedirs('/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+		config_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+		output_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+		os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
+		os.makedirs(config_root, exist_ok=True)
+		os.makedirs(output_root, exist_ok=True)
+	except Exception as e:
+		print('failed to create experiment config and output dirs with error: ')
+		print(e)
+		print('you must be on your local machine. trying to create dirs locally. ')
+		os.makedirs('/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+		config_root = '/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+		output_root = '/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+		os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
+		os.makedirs(config_root, exist_ok=True)
+		os.makedirs(output_root, exist_ok=True)
+
 
 	k=0
 	for i in range(len(SEEDS)):

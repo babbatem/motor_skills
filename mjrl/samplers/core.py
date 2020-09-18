@@ -9,11 +9,12 @@ import time as timer
 logging.disable(logging.CRITICAL)
 
 
-def get_env(env):
+def get_env(env, env_kwargs):
 
     # get the correct env behavior
     if type(env) == str:
-        env = GymEnv(env, vis=False)
+        # env = GymEnv(env, vis=True)
+        env = GymEnv(env, env_kwargs=env_kwargs)
     elif isinstance(env, GymEnv):
         env = env
     elif callable(env):
@@ -34,7 +35,7 @@ def do_rollout(
         eval_mode = False,
         horizon = 1e6,
         base_seed = None,
-        env_kwargs=None,
+        env_kwargs={},
 ):
     """
     :param num_traj:    number of trajectories (int)
@@ -46,8 +47,7 @@ def do_rollout(
     :param env_kwargs:  dictionary with parameters, will be passed to env generator
     :return:
     """
-
-    env_made=get_env(env)
+    env_made=get_env(env, env_kwargs)
 
     if base_seed is not None:
         env_made.set_seed(base_seed)
@@ -60,7 +60,7 @@ def do_rollout(
     for ep in range(num_traj):
 
         del env_made
-        env_made=get_env(env)
+        env_made=get_env(env, env_kwargs)
 
         # seeding
         if base_seed is not None:
@@ -82,6 +82,8 @@ def do_rollout(
             a, agent_info = policy.get_action(o)
             if eval_mode:
                 a = agent_info['evaluation']
+
+            # print(a[:6])
             env_info_base = env_made.get_env_infos()
             next_o, r, done, env_info_step = env_made.step(a)
             # below is important to ensure correct env_infos for the timestep
@@ -118,7 +120,7 @@ def sample_paths(
         max_process_time=300,
         max_timeouts=4,
         suppress_print=False,
-        env_kwargs=None,
+        env_kwargs={},
         ):
 
     num_cpu = 1 if num_cpu is None else num_cpu

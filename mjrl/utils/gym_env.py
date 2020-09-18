@@ -15,13 +15,16 @@ class EnvSpec(object):
 
 
 class GymEnv(object):
-    def __init__(self, env_name, vis=False):
+    def __init__(self, env_name, env_kwargs={}):
 
-        if vis:
-            env = gym.make(env_name, vis=True)
+        # if vis:
+        #     env = gym.make(env_name, vis=True)
+        # else:
+        #     env = gym.make(env_name)
+        if env_kwargs is not None:
+            env=gym.make(env_name,**env_kwargs)
         else:
-            env = gym.make(env_name)
-
+            env=gym.make(env_name)
         self.env = env
         self.env_id = env.spec.id
 

@@ -110,5 +110,6 @@ train_agent(job_name=JOB_DIR,
             sample_mode='trajectories',
             num_traj=job_data['rl_num_traj'],
             save_freq=job_data['save_freq'],
-            evaluation_rollouts=job_data['eval_rollouts'])
+            evaluation_rollouts=job_data['eval_rollouts'],
+            env_kwargs=job_data['env_kwargs'])
 print("time taken = %f" % (timer.time()-ts))

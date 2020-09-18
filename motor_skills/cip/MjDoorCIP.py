@@ -22,13 +22,14 @@ class MjDoorCIP(ImpedanceCIP):
 		to reset, the agent samples a grasp pose and is teleported there.
 	"""
 
-	def __init__(self, controller_file, sim):
+	def __init__(self, controller_file, sim, start_idx=None, viewer=None):
 		super(MjDoorCIP, self).__init__(controller_file, sim)
 		grasp_file = open(GPD_POSES_PATH, 'rb')
 		self.grasp_qs = pickle.load(grasp_file)
-		self.head = MjGraspHead(self.sim, debug=False)
+		self.head = MjGraspHead(self.sim, viewer=viewer)
 
 		self.sim = self.sim
+		self.start_idx=start_idx
 
 	def success_predicate(self):
 		return utils.door_open_success(self.sim)
@@ -41,15 +42,19 @@ class MjDoorCIP(ImpedanceCIP):
 
 	def sample_init_set(self):
 
+		if self.start_idx is not None:
+			idx = self.start_idx
+		else:
+			idx = np.random.randint(len(self.grasp_qs))
+
 		# TODO: these are in joint space, eventually want ee pose.
-		idx = np.random.randint(len(self.grasp_qs))
 		g = self.grasp_qs[idx]
-		return g
+		return g, idx
 
 	def learning_reset(self):
 
 		# % sample a state from init set
-		grasp_config = self.sample_init_set()
+		grasp_config, idx = self.sample_init_set()
 
 		# % set qpos to that state (e.g. assume perfect execution)
 		self.sim.data.qpos[:6] = grasp_config
@@ -67,4 +72,4 @@ class MjDoorCIP(ImpedanceCIP):
 
 		# % execute the grasp
 		self.execute_head()
-		return
+		return idx

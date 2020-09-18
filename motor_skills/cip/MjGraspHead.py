@@ -25,13 +25,11 @@ class MjGraspHead(object):
 		executes a grasp in MuJoCo with the kinova j2s6s300
 	"""
 
-	def __init__(self, sim, debug=False):
+	def __init__(self, sim, viewer=None):
 		super(MjGraspHead, self).__init__()
 
 		self.sim = sim
-		self.debug = debug
-		if self.debug:
-			self.viewer=MjViewer(self.sim)
+		self.viewer = viewer
 
 		# % compute indices and per timestep delta q
 		self.delta = np.zeros(DOF)
@@ -76,7 +74,7 @@ class MjGraspHead(object):
 												kp=np.eye(3)*300, kv=None, ndof=12)
 			self.sim.forward()
 			self.sim.step()
-			if self.debug:
+			if self.viewer is not None:
 				self.viewer.render()
 
 	def execute(self, sim):
@@ -116,7 +114,7 @@ class MjGraspHead(object):
 			self.sim.forward()
 			self.sim.step()
 
-			if self.debug:
+			if self.viewer is not None:
 				self.viewer.render()
 
 def seed_properly(seed_value=123):

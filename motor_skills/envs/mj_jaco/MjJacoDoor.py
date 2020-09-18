@@ -14,7 +14,6 @@ from scipy.spatial.transform import Rotation as R
 from motor_skills.envs.mj_jaco.mj_cip_utils import sample_random_pose, door_open_success, seed_properly
 
 
-
 class MjJacoDoor(gym.Env):
 	"""
 		provides a standalone gym environment for the JacoDoor problem (opening)

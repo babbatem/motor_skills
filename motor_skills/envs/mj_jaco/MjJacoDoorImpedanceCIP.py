@@ -7,14 +7,20 @@ class MjJacoDoorImpedanceCIP(MjJacoDoorCIPBase):
 		environment for the end-to-end agent.
 	"""
 
-	def __init__(self, vis=False, n_steps=int(2000)):
+	def __init__(self, vis=False, n_steps=int(2000), start_idx=None):
+
+		self.start_idx = start_idx
 
 		# % call super to load model and call init_cip
 		super(MjJacoDoorImpedanceCIP, self).__init__(vis=vis,n_steps=n_steps)
+
 
 
 	def init_cip(self):
 
 		# %% load the CIP
 		controller_file = self.parent_dir_path + '/assets/controller_config.hjson'
-		self.cip = MjDoorCIP(controller_file, self.sim)
+		self.cip = MjDoorCIP(controller_file,
+							 self.sim,
+							 start_idx=self.start_idx,
+							 viewer=self.viewer)

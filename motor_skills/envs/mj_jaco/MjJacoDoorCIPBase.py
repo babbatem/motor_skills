@@ -63,7 +63,7 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		self.cip.controller.reset()
 
 		# % reset cip for start of learning
-		self.cip.learning_reset()
+		self.start_idx  = self.cip.learning_reset()
 
 		obs = np.concatenate( [copy.deepcopy(self.sim.data.qpos),
 							   copy.deepcopy(self.sim.data.sensordata)] )

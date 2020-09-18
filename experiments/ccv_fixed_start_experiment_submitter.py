@@ -105,9 +105,9 @@ def main(args):
 						   }
 	full_env_name = full_env_names_dict[args.env]
 
-	os.makedirs('exps' + '/' + args.exp_name, exist_ok=True)
-	config_root = 'exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
-	output_root = 'exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+	os.makedirs('/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+	config_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+	output_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
 	os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
 	os.makedirs(config_root, exist_ok=True)
 	os.makedirs(output_root, exist_ok=True)

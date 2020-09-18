@@ -124,7 +124,7 @@ def main(args):
 			print('Invalid algorithm name [dapg, npg]')
 			raise ValueError
 
-		env_kwargs_string = "{'start_idx': %i}" % i
+		env_kwargs_string = "{\"start_idx\": %i}" % i
 
 		config=config % (full_env_name, env_kwargs_string, SEEDS[i])
 		config_path = config_root + args.algo + str(SEEDS[i]) + '.txt'

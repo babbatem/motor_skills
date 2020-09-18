@@ -13,10 +13,14 @@ TODOs
 [x] script body
 [x] env_kwargs added to config file
 [] remove demonstration bits
-[] sbatch > qsub
+[x] sbatch > qsub
 [] request a gpu?
-[] loop over start states (for this particular experiment - one seed each?)
+[x] loop over start states (for this particular experiment - one seed each)
+		if we get mismatch, run more.
 
+[] seeds and learning rates
+[] connecting to onager/tune/etc.
+[] job name arg to batch script, or automatically name the output and err files.
 """
 
 def filldict(listKeys, listValues):
@@ -72,8 +76,8 @@ def get_config_file_npg():
 'rl_step_size'  :   0.05,
 'rl_gamma'      :   0.995,
 'rl_gae'        :   0.97,
-'rl_num_traj'   :   20,
-'rl_num_iter'   :   10,
+'rl_num_traj'   :   200,
+'rl_num_iter'   :   100,
 'lam_0'         :   0,
 'lam_1'         :   0,
 'init_log_std'  :   0,

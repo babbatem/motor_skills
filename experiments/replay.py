@@ -141,7 +141,7 @@ except:
 			   env_kwargs= {'start_idx': 0, 'vis':True, 'n_steps':10}
 			   )
 
-# np.save('REPLAY_PATHS_2020_09_17_1000paths.npy', paths)
+np.save('REPLAY_PATHS_2020_09_17_1000paths.npy', paths)
 
 env_made = get_env(env)
 succ_rate = env_made.env.evaluate_success(paths)

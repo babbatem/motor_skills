@@ -102,7 +102,8 @@ def submit(param_dict):
 def main(args):
 
 	KEYS = ['seed', 'env', 'algo', 'config', 'output', 'name', 'env-short']
-	SEEDS = np.arange(13)
+	STARTS = np.arange(13)
+	SEEDS = np.arange(3)
 
 	full_env_names_dict = {'cip': 'motor_skills:mj_jaco_door_cip-v0',
 						   'naive': 'motor_skills:mj_jaco_door_naive-v0',
@@ -143,12 +144,12 @@ def main(args):
 		env_kwargs_string = "{\"start_idx\": %i}" % i
 
 		config=config % (full_env_name, env_kwargs_string, SEEDS[i])
-		config_path = config_root + args.algo + str(SEEDS[i]) + '.txt'
+		config_path = config_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i]) + '.txt'
 		config_writer = open(config_path,'w')
 		config_writer.write(config)
 		config_writer.close()
 
-		output_path = output_root + args.algo + str(SEEDS[i])
+		output_path = output_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i])
 
 		element = [SEEDS[i],
 				   full_env_name,

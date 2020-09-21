@@ -8,9 +8,9 @@ controllers and environments!
 4. TODO: ompl installation instructions. At the moment the motion planner isn't plugged in.   
 
 
-See ```motor_skills/envs``` for gym environments.
-See ```motor_skills/cip``` for abstract classes, particular implementations, VICES controller.
-See ```motor_skills/core``` for control bits, e.g. PD control, operational space stuff.  
+See ```motor_skills/envs``` for gym environments.   
+See ```motor_skills/cip``` for abstract classes, particular implementations, VICES controller.  
+See ```motor_skills/core``` for control bits, e.g. PD control, operational space stuff.    
 
 The gym env inheritance structure is wack. Here's a sketch, in the event that you need to dig into that code.
 

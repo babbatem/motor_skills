@@ -33,10 +33,10 @@ def generate_script_body(param_dict):
 	script_body=\
 '''#!/bin/bash
 
-#SBATCH --time=4:00:00
+#SBATCH --time=2:00:00
 
 #SBATCH -N 1
-#SBATCH -c 8
+#SBATCH -c 4
 #SBATCH -J cip-learn
 #SBATCH --mem=8G
 
@@ -64,7 +64,7 @@ def get_config_file_npg():
 'env_kwargs'    :   %s,
 'algorithm'     :   'NPG',
 'seed'          :   %i,
-'num_cpu'       :   3,
+'num_cpu'       :   4,
 'save_freq'     :   25,
 'eval_rollouts' :   1,
 
@@ -131,39 +131,40 @@ def main(args):
 
 
 	k=0
-	for i in range(len(SEEDS)):
+	for i in range(len(STARTS)):
+		for j in range(len(SEEDS)):
 
-		# get the config text
-		if args.algo == 'dapg':
-			config = get_config_file_dapg()
-		elif args.algo == 'npg':
-			config = get_config_file_npg()
-		else:
-			print('Invalid algorithm name [dapg, npg]')
-			raise ValueError
+			# get the config text
+			if args.algo == 'dapg':
+				config = get_config_file_dapg()
+			elif args.algo == 'npg':
+				config = get_config_file_npg()
+			else:
+				print('Invalid algorithm name [dapg, npg]')
+				raise ValueError
 
-		env_kwargs_string = "{\"start_idx\": %i}" % i
+			env_kwargs_string = "{\"start_idx\": %i}" % i
 
-		config=config % (full_env_name, STARTS[i], SEEDS[i])
-		config_path = config_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i]) + '.txt'
-		config_writer = open(config_path,'w')
-		config_writer.write(config)
-		config_writer.close()
+			config=config % (full_env_name, STARTS[i], SEEDS[j])
+			config_path = config_root + args.algo + str(SEEDS[j]) + '_' + str(STARTS[i]) + '.txt'
+			config_writer = open(config_path,'w')
+			config_writer.write(config)
+			config_writer.close()
 
-		output_path = output_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i])
+			output_path = output_root + args.algo + str(SEEDS[j]) + '_' + str(STARTS[i])
 
-		element = [SEEDS[i],
-				   STARTS[i],
-				   full_env_name,
-				   args.algo,
-				   config_path,
-				   output_path,
-				   args.exp_name,
-				   args.env]
+			element = [SEEDS[j],
+					   STARTS[i],
+					   full_env_name,
+					   args.algo,
+					   config_path,
+					   output_path,
+					   args.exp_name,
+					   args.env]
 
-		param_dict = filldict(KEYS, element)
-		submit(param_dict)
-		k+=1
+			param_dict = filldict(KEYS, element)
+			submit(param_dict)
+			k+=1
 	print(k)
 
 if __name__ == '__main__':

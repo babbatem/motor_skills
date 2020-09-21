@@ -145,7 +145,7 @@ def main(args):
 
 			env_kwargs_string = "{\"start_idx\": %i}" % i
 
-			config=config % (full_env_name, STARTS[i], SEEDS[j])
+			config=config % (full_env_name, env_kwargs_string, SEEDS[j])
 			config_path = config_root + args.algo + str(SEEDS[j]) + '_' + str(STARTS[i]) + '.txt'
 			config_writer = open(config_path,'w')
 			config_writer.write(config)

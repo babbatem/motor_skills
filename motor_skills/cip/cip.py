@@ -12,6 +12,9 @@ class CIP(object):
     def sample_init_set(self):
         raise NotImplementedError
 
+    def update_init_set(self):
+        raise NotImplementedError
+
     def sample_effect_distribution(self):
         raise NotImplementedError
 

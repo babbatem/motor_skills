@@ -90,8 +90,8 @@ def submit(param_dict):
 
 	objectname = param_dict['algo'] + '-' \
 	 		   + param_dict['env-short'] + '-' \
-			   + str(param_dict['seed'] + '-' \
-			   + str(param_dict['start']))
+			   + str(param_dict['seed']) + '-' \
+			   + str(param_dict['start'])
 
 	jobfile = "scripts/{}/{}".format(param_dict['name'], objectname)
 	with open(jobfile, 'w') as f:

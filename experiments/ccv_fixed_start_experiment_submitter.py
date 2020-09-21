@@ -76,7 +76,7 @@ def get_config_file_npg():
 'rl_step_size'  :   0.05,
 'rl_gamma'      :   0.995,
 'rl_gae'        :   0.97,
-'rl_num_traj'   :   200,
+'rl_num_traj'   :   100,
 'rl_num_iter'   :   100,
 'lam_0'         :   0,
 'lam_1'         :   0,
@@ -90,7 +90,8 @@ def submit(param_dict):
 
 	objectname = param_dict['algo'] + '-' \
 	 		   + param_dict['env-short'] + '-' \
-			   + str(param_dict['seed'])
+			   + str(param_dict['seed'] + '-' \
+			   + str(param_dict['start']))
 
 	jobfile = "scripts/{}/{}".format(param_dict['name'], objectname)
 	with open(jobfile, 'w') as f:
@@ -101,7 +102,7 @@ def submit(param_dict):
 
 def main(args):
 
-	KEYS = ['seed', 'env', 'algo', 'config', 'output', 'name', 'env-short']
+	KEYS = ['seed', 'start', 'env', 'algo', 'config', 'output', 'name', 'env-short']
 	STARTS = np.arange(13)
 	SEEDS = np.arange(3)
 
@@ -143,7 +144,7 @@ def main(args):
 
 		env_kwargs_string = "{\"start_idx\": %i}" % i
 
-		config=config % (full_env_name, env_kwargs_string, SEEDS[i])
+		config=config % (full_env_name, STARTS[i], SEEDS[i])
 		config_path = config_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i]) + '.txt'
 		config_writer = open(config_path,'w')
 		config_writer.write(config)
@@ -152,6 +153,7 @@ def main(args):
 		output_path = output_root + args.algo + str(SEEDS[i]) + '_' + str(STARTS[i])
 
 		element = [SEEDS[i],
+				   STARTS[i],
 				   full_env_name,
 				   args.algo,
 				   config_path,

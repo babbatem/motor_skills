@@ -3,7 +3,7 @@ controllers and environments!
 
 # installation
 1. install mujoco and mujoco_py using these [instructions](https://github.com/openai/mujoco-py). Note that we have a lab license.
-2. python setup.py install (to get imports right; optionally add to pythonpath)
+2. add the directory to pythonpath (i.e. in bashrc or virtualenv activate script), such that imports are functional. ```export PYTHONPATH=$PYTHONPATH:/path/to/motor_skills ``` 
 3. pip install -r reqs.txt (assumes python3)
 4. TODO: ompl installation instructions. At the moment the motion planner isn't plugged in.   
 

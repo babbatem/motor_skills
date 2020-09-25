@@ -15,7 +15,9 @@ I think your first stop should be ```motor_skills/cip/cip.py```. It outlines the
 
 I can generate some data with which to train a classifier after learning is over. Eventually I think we want to generate data for an online classifier/bandit-kinda thing, we'll have to pass data up through the environment back to the learner. The learning code is mostly the same as last project's deep net experiments (see ```mjrl``` folder). If you look at ```mjrl/samplers/core.py``` you'll see the rollouts happening. We could log data in the ```paths``` dictionary, and collect it during training steps. I think we probably ought to implement our own learning algorithm (e.g. subclass ```mjrl/algos/batch_reinforce.py``` ala ```mjrl/algos/dapg``` and implement our own ```train_step``` method to also update the initiation, effect sets in addition to policy parameters).
 
-Other TODOs: [link here forthcoming]  
+
+*The file with grasps output from GPD: ```motor_skills/envs/mj_jaco/assets/MjJacoDoorGrasps``` (use np.load). *  
+*I've added a policy for learning in ```experiments/dev_policy.pickle```. Loading is illustrated in ```experiments/replay.py```.  *
 
 The gym env inheritance structure is wack. Here's a sketch, in the event that you need to dig into that code.
 
@@ -28,3 +30,12 @@ The gym env inheritance structure is wack. Here's a sketch, in the event that yo
           (these two implement an ```init_cip``` method that loads the relevant controller)  
 
 We might need to redesign this prior to releasing the code in any official capacity.
+
+Other TODOs in addition to grasp classifier:     
+- Gripper action space.  
+- GDK's simulated sensor experiment. 
+- Failure Classifier: current idea is epsilon ball in space relative to grasp and/or contact sensing 
+- GPD integrated (writing to disk, loading and passing to GPD ourselves or with lcm) 
+- Object pose changes.  
+- Hindsight & Parameterized Skills.  
+- "Effect Set" density estimator   

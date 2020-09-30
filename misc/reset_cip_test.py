@@ -1,6 +1,7 @@
 import time
 import numpy as np
 from motor_skills.envs.mj_jaco.MjJacoDoorImpedanceCIP import MjJacoDoorImpedanceCIP
+from motor_skills.envs.mj_jaco.MjJacoDoorImpedanceNaive import MjJacoDoorImpedanceNaive
 
 def seed_properly(seed_value=123):
 
@@ -16,9 +17,17 @@ def seed_properly(seed_value=123):
 
 seed=int(time.time())
 seed_properly(seed)
-env = MjJacoDoorImpedanceCIP(vis=True)
+env = MjJacoDoorImpedanceCIP(vis=True, start_idx=2)
+# env = MjJacoDoorImpedanceNaive(vis=True)
 env.reset()
 
 while True:
-    env.sim.step()
-    env.render()
+    action = np.zeros(env.action_dim)
+
+    action[4] = 0.5
+    env.step(action)
+
+
+
+    # env.sim.step()
+    # env.render()

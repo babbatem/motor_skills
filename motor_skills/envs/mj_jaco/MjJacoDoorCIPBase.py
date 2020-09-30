@@ -34,6 +34,7 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		a_low = np.full(action_dim, -float('inf'))
 		a_high = np.full(action_dim, float('inf'))
 		self.action_space = gym.spaces.Box(a_low,a_high)
+		self.action_dim = action_dim
 
 		obs_space = self.model.nq + self.model.nsensordata
 		o_low = np.full(obs_space, -float('inf'))

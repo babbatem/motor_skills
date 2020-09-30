@@ -14,11 +14,21 @@ def get_data(rootDir):
         for fname in fileList:
             desired_fname = 'log.csv'
             if fname == desired_fname:
+
+                # if we find a log, read into dataframe
                 path = os.path.join(dirName,fname)
                 log_df = pd.read_csv(path)
                 log_df['tag']=path
-                log_df['episode']=np.arange(len(log_df))*200
-                print(len(log_df))
+                log_df['episode']=np.arange(len(log_df))*100
+
+                # process the job config
+                config_path = os.path.join(dirName, '..', 'job_config.json')
+                with open(config_path, 'r') as f:
+                    job_data = eval(f.read())
+
+                log_df['seed'] = job_data['seed']
+                log_df['start'] = str(job_data['env_kwargs']['start_idx'])
+
                 runs.append(log_df)
 
                 scores[path]=log_df['eval_score'].tolist()[-1]
@@ -27,7 +37,7 @@ def get_data(rootDir):
     return data, scores
 
 
-data, scores=get_data('exps/starts/')
+data, scores=get_data('exps/restarts/')
 print(data)
 
 for k in sorted(scores.keys(), key=lambda x: scores[x]):
@@ -38,7 +48,7 @@ my_relplot = sns.relplot(x='episode',
                          data=data,
                          # height=4,
                          alpha=0.4,
-                         hue='tag',
+                         hue='start',
                          # col_wrap=2,
                          # legend=False,)
                          )

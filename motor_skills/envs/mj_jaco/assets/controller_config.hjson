@@ -3,8 +3,8 @@
     // Position and Orientation controller
     "position_orientation":
     {
-        "control_range_ori": 0.2,
-        "control_range_pos": 0.2,
+        "control_range_ori": 0.5,
+        "control_range_pos": 0.5,
         "damping_max": 2,
         "damping_max_abs_delta": 0.1,
         "damping_min": 0,

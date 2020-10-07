@@ -101,7 +101,10 @@ print("========================================")
 
 
 print()
-print(job_data['env_kwargs'])
+try:
+    print(job_data['env_kwargs'])
+except:
+    job_data['env_kwargs'] = dict(vis=False)
 print()
 ts = timer.time()
 train_agent(job_name=JOB_DIR,

@@ -20,7 +20,7 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		init_cip method left not implemented such that the appropriate CIP may be loaded.
 	"""
 
-	def __init__(self, vis=False, n_steps=int(2000)):
+	def __init__(self, vis=False, vis_head=False, n_steps=int(2000)):
 
 		# % call super to load model
 		super(MjJacoDoorCIPBase, self).__init__(vis=vis,n_steps=n_steps)
@@ -30,7 +30,8 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		self.set_cip_data()
 
 		# %% override inherited action and obs spaces
-		action_dim = self.cip.controller.action_dim + 6
+		# action_dim = self.cip.controller.action_dim + 6
+		action_dim = self.cip.controller.action_dim      # NOTE: gripper control disabled
 		a_low = np.full(action_dim, -float('inf'))
 		a_high = np.full(action_dim, float('inf'))
 		self.action_space = gym.spaces.Box(a_low,a_high)
@@ -65,6 +66,9 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 
 		# % reset cip for start of learning
 		self.start_idx  = self.cip.learning_reset()
+
+		self.grp_target = copy.deepcopy(self.sim.data.qpos[:len(self.sim.data.ctrl)])
+		self.cip.set_gripper_target(self.grp_target)
 
 		obs = np.concatenate( [copy.deepcopy(self.sim.data.qpos),
 							   copy.deepcopy(self.sim.data.sensordata)] )

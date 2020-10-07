@@ -45,9 +45,13 @@ def dense_open_cost(sim):
                     		      np.array(sim.data.body_xpos[handle_idx])
 
     gripper_handle_distance = np.linalg.norm(gripper_handle_displacement)
-    cost = DOOR_WEIGHT*(DOOR_GOAL_OPEN - max(sim.data.qpos[-2], 0) )**2 + \
-         HANDLE_WEIGHT*(HANDLE_GOAL_OPEN - sim.data.qpos[-1])**2 + \
-         GRASP_WEIGHT*(gripper_handle_distance)  # note: I added the max( . , 0) to prevent penalizing for pushing the door forward. 
+    # cost = DOOR_WEIGHT*(DOOR_GOAL_OPEN - max(sim.data.qpos[-2], 0) )**2 + \
+    #      HANDLE_WEIGHT*(HANDLE_GOAL_OPEN - sim.data.qpos[-1])**2 + \
+    #      GRASP_WEIGHT*(gripper_handle_distance)  # note: I added the max( . , 0) to prevent penalizing for pushing the door forward.
+
+	cost = DOOR_WEIGHT*(DOOR_GOAL_OPEN - sim.data.qpos[-2])**2 + \
+           HANDLE_WEIGHT*(HANDLE_GOAL_OPEN - sim.data.qpos[-1])**2 + \
+           GRASP_WEIGHT*(gripper_handle_distance)  # note: I added the max( . , 0) to prevent penalizing for pushing the door forward.
     return cost
 
 def dense_closing_cost(sim):

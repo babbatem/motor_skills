@@ -46,7 +46,6 @@ def get_config_file_npg():
 # general inputs
 
 'env'           :   '%s',
-'env_kwargs'    :   %s,
 'algorithm'     :   'NPG',
 'seed'          :   %i,
 'num_cpu'       :   4,

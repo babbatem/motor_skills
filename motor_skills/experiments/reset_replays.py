@@ -60,6 +60,8 @@ def do_replays(
 
 	for ep in tqdm(range(num_traj)):
 
+		env_kwargs['start_idx'] = ep
+
 		del env_made
 		env_made=get_env(env, env_kwargs=env_kwargs)
 
@@ -119,7 +121,7 @@ if __name__ == '__main__':
     # from motor_skills.envs.mj_jaco import MjJacoDoorImpedanceCIP
     # env=MjJacoDoorImpedanceCIP(vis=True)
     # f=open('experiments/cip/dev/policy_15.pickle','rb')
-    f=open('exps/full0/cip/outputs/npg1_/iterations/best_policy.pickle','rb')
+    f=open('experiments/cip/dev/policy_80.pickle','rb')
     # f=open('experiments/naive/dev/policy_95.pickle','rb')
     policy = pickle.load(f)
     num_traj = 22
@@ -127,16 +129,39 @@ if __name__ == '__main__':
     env='motor_skills:mj_jaco_door_cip-v0'
     # env='motor_skills:mj_jaco_door_naive-v0'
 
-    paths=do_replays(num_traj,
-                     env,
-                     policy,
-                     eval_mode = True,
-                     horizon = 1e6,
-                     base_seed = 1,
-                     env_kwargs= {'vis':True, 'n_steps':2000}
-                     # env_kwargs= {'start_idx': 0, 'vis':True, 'n_steps':2000}
-                     )
+    try:
+    	paths = np.load('REPLAY_PATHS_2020_09_17.npy', allow_pickle=True)
+    except:
+    	paths=do_replays(num_traj,
+    			   env,
+    			   policy,
+    			   eval_mode = True,
+    			   horizon = 1e6,
+    			   base_seed = 1,
+    			   env_kwargs= {'start_idx': 0, 'vis':True, 'n_steps':2000}
+    			   )
+
+    np.save('REPLAY_PATHS_2020_09_17_1000paths.npy', paths)
 
     env_made = get_env(env)
     succ_rate = env_made.env.evaluate_success(paths)
     print('success rate: ', succ_rate)
+
+    n_total_grasps = len(env_made.env.cip.grasp_qs)
+    successes_arr = np.zeros(n_total_grasps)
+    times_sampled_arr = np.zeros(n_total_grasps)
+    x = np.arange(n_total_grasps)
+    for p in paths:
+    	start_idx = p['start_idx']
+    	times_sampled_arr[start_idx] += 1
+    	if p['env_infos']['success'][-1]:
+    		successes_arr[start_idx] += 1
+
+    successes_arr = np.array(successes_arr)
+    times_sampled_arr = np.array(times_sampled_arr)
+    success_rate_arr = successes_arr / times_sampled_arr
+
+
+    plt.subplot(121); plt.bar(x, times_sampled_arr); plt.title('times sampled')
+    plt.subplot(122); plt.bar(x, success_rate_arr); plt.title('success percentage')
+    plt.savefig('/home/abba/Desktop/success_vs_start_1000.png')

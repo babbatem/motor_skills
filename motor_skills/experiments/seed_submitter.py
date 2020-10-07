@@ -18,12 +18,12 @@ def generate_script_body(param_dict):
 	script_body=\
 '''#!/bin/bash
 
-#SBATCH --time=2:00:00
+#SBATCH --time=8:00:00
 
 #SBATCH -N 1
 #SBATCH -c 4
 #SBATCH -J cip-learn
-#SBATCH --mem=8G
+#SBATCH --mem=12G
 
 #SBATCH -o cip-learn-%j.out
 #SBATCH -e cip-learn-%j.out

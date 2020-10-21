@@ -59,8 +59,9 @@ def do_replays(
 	paths = []
 
 	for ep in tqdm(range(num_traj)):
-
 		del env_made
+		print("Current idx: ", ep)
+		env_kwargs['start_idx'] = ep 
 		env_made=get_env(env, env_kwargs=env_kwargs)
 
 		# seeding
@@ -79,24 +80,26 @@ def do_replays(
 		done = False
 		t = 0
 
-		while t < horizon and done != True:
-			a, agent_info = policy.get_action(o)
-			if eval_mode:
-				a = agent_info['evaluation']
+		try:
+			while t < horizon and done != True:
+				a, agent_info = policy.get_action(o)
+				if eval_mode:
+					a = agent_info['evaluation']
 
-			# print(a[:6])
-			env_info_base = env_made.get_env_infos()
-			next_o, r, done, env_info_step = env_made.step(a)
-			# below is important to ensure correct env_infos for the timestep
-			env_info = env_info_step if env_info_base == {} else env_info_base
-			observations.append(o)
-			actions.append(a)
-			rewards.append(r)
-			agent_infos.append(agent_info)
-			env_infos.append(env_info)
-			o = next_o
-			t += 1
-
+				# print(a[:6])
+				env_info_base = env_made.get_env_infos()
+				next_o, r, done, env_info_step = env_made.step(a)
+				# below is important to ensure correct env_infos for the timestep
+				env_info = env_info_step if env_info_base == {} else env_info_base
+				observations.append(o)
+				actions.append(a)
+				rewards.append(r)
+				agent_infos.append(agent_info)
+				env_infos.append(env_info)
+				o = next_o
+				t += 1
+		except:
+			print("================================================REALLY BAD GRASP POSE, SHOULD BE LABELED AS SUCH")
 		observations=np.array(observations)
 		np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 		# print('Episode Total: ', sum(rewards))
@@ -119,13 +122,16 @@ if __name__ == '__main__':
     # from motor_skills.envs.mj_jaco import MjJacoDoorImpedanceCIP
     # env=MjJacoDoorImpedanceCIP(vis=True)
     # f=open('experiments/cip/dev/policy_15.pickle','rb')
-    f=open('exps/full0/cip/outputs/npg1_/iterations/best_policy.pickle','rb')
+    #f=open('exps/full0/cip/outputs/npg1_/iterations/best_policy.pickle','rb')
+    #f=open('./dev_policy_full.pickle','rb')
+    #f=open('./best_policy.pickle','rb')
+    f = open ('./results/cip-learning-config3/iterations/best_policy.pickle','rb')
     # f=open('experiments/naive/dev/policy_95.pickle','rb')
     policy = pickle.load(f)
-    num_traj = 22
+    num_traj = 17*200
 
     env='motor_skills:mj_jaco_door_cip-v0'
-    # env='motor_skills:mj_jaco_door_naive-v0'
+    #env='motor_skills:mj_jaco_door_naive-v0'
 
     paths=do_replays(num_traj,
                      env,
@@ -133,9 +139,22 @@ if __name__ == '__main__':
                      eval_mode = True,
                      horizon = 1e6,
                      base_seed = 1,
-                     env_kwargs= {'vis':True, 'n_steps':2000}
+                     env_kwargs= {'vis':True, 'n_steps':2000, 'start_idx': 0}
+                     #env_kwargs= {'vis':True, 'n_steps':2000}
                      # env_kwargs= {'start_idx': 0, 'vis':True, 'n_steps':2000}
                      )
+    print("the number of paths is: ", len(paths))
+    succ = []
+    counter = 0
+    for p in paths:
+        print("IDX: ", p["start_idx"])
+        if p['env_infos']['success'].any():
+            print("Win: ", p['env_infos']['success'][-1])
+            counter += 1
+            print("=================================================================")
+            succ.append(p["start_idx"])
+    print(succ)
+    print(counter)
 
     env_made = get_env(env)
     succ_rate = env_made.env.evaluate_success(paths)

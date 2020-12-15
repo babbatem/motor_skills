@@ -12,7 +12,7 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 
 NDOF=6
 
-model = load_model_from_path('/home/abba/msu_ws/src/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml')
+model = load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml')
 sim = MjSim(model)
 viewer = MjViewer(sim)
 
@@ -22,7 +22,7 @@ s = planner.validityChecker.sample_state()
 g = planner.validityChecker.sample_state()
 result=planner.plan(s, g)
 
-sim.data.qpos[:6] = s
+sim.data.qpos[:NDOF] = s
 sim.step()
 viewer.render()
 _=input('enter to start execution')
@@ -37,22 +37,22 @@ for t in range(H):
         target_q.append(state_t[i])
         target_qd.append(0.0)
 
-    torques=mjc.pd(None, target_qd, target_q, sim, ndof=6, kp=np.eye(6)*300)
-    sim.data.ctrl[:6]=torques
+    torques=mjc.pd(None, target_qd, target_q, sim, ndof=NDOF, kp=np.eye(NDOF)*300)
+    sim.data.ctrl[:NDOF]=torques
     sim.step()
     viewer.render()
     time.sleep(0.01)
 
 for t in range(200):
-    torques=mjc.pd(None, target_qd, target_q, sim, ndof=6, kp=np.eye(6)*100)
-    sim.data.ctrl[:6]=torques
+    torques=mjc.pd(None, target_qd, target_q, sim, ndof=NDOF, kp=np.eye(NDOF)*100)
+    sim.data.ctrl[:NDOF]=torques
     sim.step()
     viewer.render()
 
 
 
 _=input('enter to see goal')
-sim.data.qpos[:6] = g
+sim.data.qpos[:NDOF] = g
 sim.step()
 
 while True:

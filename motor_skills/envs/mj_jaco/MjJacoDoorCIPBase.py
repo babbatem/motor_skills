@@ -81,9 +81,6 @@ class MjJacoDoorCIPBase(MjJacoDoor):
 		else:
 			n_wrist_vars = 0
 
-		print(n_touch_vars)
-		print(n_wrist_vars)
-
 		obs_space = self.model.nq + n_touch_vars + n_wrist_vars
 		o_low = np.full(obs_space, -float('inf'))
 		o_high = np.full(obs_space, float('inf'))

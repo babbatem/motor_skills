@@ -37,7 +37,7 @@ def train_agent(job_name, agent,
     best_perf = -1e8
     train_curve = best_perf*np.ones(niter)
     mean_pol_perf = 0.0
-    e = GymEnv(agent.env.env_id)
+    e = GymEnv(agent.env.env_id, env_kwargs=env_kwargs)
 
     for i in range(niter):
         print("......................................................................................")

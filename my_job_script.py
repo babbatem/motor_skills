@@ -45,8 +45,10 @@ with open(EXP_FILE, 'w') as f:
 # ===============================================================================
 # Train Loop
 # ===============================================================================
-e = GymEnv(job_data['env'])
+e = GymEnv(job_data['env'], env_kwargs=job_data['env_kwargs'])
 spec = e.spec
+print('observation dim: ', spec.observation_dim)
+
 policy = MLP(spec,
              hidden_sizes=job_data['policy_size'],
              seed=job_data['seed'],

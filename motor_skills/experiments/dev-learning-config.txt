@@ -3,7 +3,7 @@
 # general inputs
 
 'env'           :   'motor_skills:mj_jaco_door_cip-v0',
-'env_kwargs'    :   {'vis':True, 'start_idx':9},
+'env_kwargs'    :   {'vis':True, 'start_idx':9, 'sensor_type': None, 'wrist_sensor': False},
 'algorithm'     :   'NPG',
 'seed'          :   123,
 'num_cpu'       :   1,

@@ -7,13 +7,14 @@ class MjJacoDoorImpedanceCIP(MjJacoDoorCIPBase):
 		environment for the end-to-end agent.
 	"""
 
-	def __init__(self, vis=False, vis_head=False, n_steps=int(2000), start_idx=None):
+	def __init__(self, vis=False, vis_head=False, n_steps=int(2000),
+				 start_idx=None, sensor_type='normal', wrist_sensor=True):
 
 		self.start_idx = start_idx
 		self.vis_head = vis_head
 
 		# % call super to load model and call init_cip
-		super(MjJacoDoorImpedanceCIP, self).__init__(vis=vis,n_steps=n_steps)
+		super(MjJacoDoorImpedanceCIP, self).__init__(vis=vis,n_steps=n_steps, sensor_type=sensor_type, wrist_sensor=wrist_sensor)
 
 
 

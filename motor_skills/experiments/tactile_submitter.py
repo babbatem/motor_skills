@@ -96,7 +96,10 @@ def submit(param_dict):
 	script_body = generate_script_body(param_dict)
 	objectname = ''
 	for key in NAMING_KEYS:
-		objectname += '-' + str(param_dict[key])
+		if key == NAMING_KEYS[0]:
+			objectname += str(param_dict[key])
+		else:
+			objectname += '-' + str(param_dict[key])
 
 	jobfile = "scripts/{}/{}".format(param_dict['name'], objectname)
 	with open(jobfile, 'w') as f:
@@ -112,9 +115,9 @@ def main(args):
 	full_env_name = full_env_names_dict[args.env]
 
 	try:
-		os.makedirs('/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
-		config_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
-		output_root = '/users/babbatem/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+		os.makedirs('/users/babbatem/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+		config_root = '/users/babbatem/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+		output_root = '/users/babbatem/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
 		os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
 		os.makedirs(config_root, exist_ok=True)
 		os.makedirs(output_root, exist_ok=True)
@@ -124,9 +127,9 @@ def main(args):
 		try:
 			print('failed to create ccv experiment config')
 			print('trying to create dirs locally. ')
-			os.makedirs('/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
-			config_root = '/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
-			output_root = '/home/abba/msu_ws/src/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+			os.makedirs('/home/abba/msu_ws/src/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+			config_root = '/home/abba/msu_ws/src/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+			output_root = '/home/abba/msu_ws/src/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
 			os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
 			os.makedirs(config_root, exist_ok=True)
 			os.makedirs(output_root, exist_ok=True)
@@ -134,9 +137,9 @@ def main(args):
 
 		except Exception as e:
 			try:
-				os.makedirs('/Users/abba/projects/msu/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
-				config_root = '/Users/abba/projects/msu/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
-				output_root = '/Users/abba/projects/msu/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
+				os.makedirs('/Users/abba/projects/msu/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name, exist_ok=True)
+				config_root = '/Users/abba/projects/msu/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/configs/'
+				output_root = '/Users/abba/projects/msu/motor_skills/motor_skills/experiments/exps' + '/' + args.exp_name + '/' + args.env + '/outputs/'
 				os.makedirs('scripts/%s' % args.exp_name, exist_ok=True)
 				os.makedirs(config_root, exist_ok=True)
 				os.makedirs(output_root, exist_ok=True)
@@ -168,7 +171,7 @@ def main(args):
 				config_writer.write(config)
 				config_writer.close()
 
-				output_path = output_root + args.algo + str(SEEDS[k]) + '_' + str(SENSORS[i]) +'_'+ str(WRISTS[j]) + '.txt'
+				output_path = output_root + args.algo + str(SEEDS[k]) + '_' + str(SENSORS[i]) +'_'+ str(WRISTS[j])
 
 				element = [SEEDS[k],
 						   None,

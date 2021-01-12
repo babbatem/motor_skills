@@ -3,14 +3,14 @@
 # general inputs
 
 'env'           :   'motor_skills:mj_jaco_door_cip-v0',
-'env_kwargs'    :   {'vis':True, 'start_idx':9, 'sensor_type': None, 'wrist_sensor': False},
+'env_kwargs'    :   {'vis':True, 'start_idx':None, 'sensor_type': 'normal', 'wrist_sensor': True, 'n_steps':8000},
 'algorithm'     :   'NPG',
 'seed'          :   123,
 'num_cpu'       :   1,
 'save_freq'     :   5,
 'eval_rollouts' :   1,
 'exp_notes'     :   'Example config for training policy using DAPG for the relocate-v0 task.',
-'init_log_std'  :   2,
+'init_log_std'  :   1,
 
 # RL parameters (all params related to PG, value function, DAPG etc.)
 

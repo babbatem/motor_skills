@@ -87,7 +87,7 @@ def get_config_file_npg():
 'rl_num_iter'   :   100,
 'lam_0'         :   0,
 'lam_1'         :   0,
-'init_log_std'  :   0,
+'init_log_std'  :   1,
 }
 """
 	return config
@@ -163,7 +163,7 @@ def main(args):
 					raise ValueError
 
 				env_kwargs_string = {'vis':False, 'start_idx': None,
-								'sensor_type': SENSORS[i], 'wrist_sensor': WRISTS[j]}
+								'sensor_type': SENSORS[i], 'wrist_sensor': WRISTS[j], 'n_steps':10000}
 
 				config=config % (full_env_name, env_kwargs_string, SEEDS[k])
 				config_path = config_root + args.algo + str(SEEDS[k]) + '_' + str(SENSORS[i]) +'_'+ str(WRISTS[j]) + '.txt'

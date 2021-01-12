@@ -57,8 +57,8 @@ class ImpedanceCIP(CIP):
                                  np.zeros(len(self.sim.data.ctrl)),
                                  self.grp_target,
                                  self.sim,
-                                 kp=np.eye(12)*300,
-                                 kv=np.eye(12)*150)
+                                 kp=np.eye(12)*600,
+                                 kv=np.eye(12)*300)
 
         gripper_torques=gripper_torques[self.grp_idx]
 

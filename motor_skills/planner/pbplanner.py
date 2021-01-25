@@ -14,12 +14,13 @@ NDOF = 6
 URDFPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
 DOORPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/_frame.urdf'
 
-def pbsetup():
+def pbsetup(load_door):
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0,0,-10)
     p.loadURDF(URDFPATH, useFixedBase=True)
     p.loadURDF("plane.urdf", [0, 0, 0])
-    p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
+    if load_door:
+        p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
     return
 
 # class for collision checking in python
@@ -27,14 +28,19 @@ def pbsetup():
 # ASSUMES robotId is 0, planeId is 1.
 # ASSUMES NDOF DoF
 class pbValidityChecker(ob.StateValidityChecker):
-    def __init__(self, si, otherIds):
+    def __init__(self, si, door_uid=None):
         super(pbValidityChecker, self).__init__(si)
-        self.otherIds = otherIds
+
         self.lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
         self.upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
 
-        self.otherObj_states = { 2: [0,0] } # maps Uid to reset states
-        self.otherObj_dofs =   { 2: [0,2] } # maps Uid to joint indices to be reset
+        self.otherIds = []
+        self.otherObj_states = {} # maps Uid to reset states
+        self.otherObj_dofs = {} # maps Uid to joint indices to be reset
+        if door_uid:
+            self.otherIds.append(door_uid)
+            self.otherObj_states[door_uid] = [0,0]
+            self.otherObj_dofs[door_uid] = [0,2]
 
     # sets state and checks joint limits and collision
     def isValid(self, state):
@@ -99,13 +105,13 @@ class PbPlanner(object):
     """
         constructs pybullet simulation & plans therein with OMPL.
     """
-    def __init__(self):
+    def __init__(self, load_door=False):
         super(PbPlanner, self).__init__()
 
         # setup pybullet
         # p.connect(p.GUI)
         p.connect(p.DIRECT)
-        pbsetup()
+        pbsetup(load_door)
 
         # setup space
         lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
@@ -122,7 +128,9 @@ class PbPlanner(object):
         self.si = ob.SpaceInformation(self.space)
 
         # Set the object used to check which states in the space are valid
-        self.validityChecker = pbValidityChecker(self.si, [2])
+        # TODO: Lookup door Uid. Currently assume it's 2 because robot is 0 and plane is 1
+        door_uid = 2 if load_door else None
+        self.validityChecker = pbValidityChecker(self.si, door_uid)
         self.si.setStateValidityChecker(self.validityChecker)
         self.si.setup()
 

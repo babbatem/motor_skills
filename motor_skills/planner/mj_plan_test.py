@@ -12,12 +12,15 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 
 NDOF=6
 
-model = load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml')
+load_door = False
+
+model = load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml') if load_door else \
+    load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
 sim = MjSim(model)
 viewer = MjViewer(sim)
 
 # make some plans
-planner = PbPlanner()
+planner = PbPlanner(load_door)
 s = planner.validityChecker.sample_state()
 g = planner.validityChecker.sample_state()
 result=planner.plan(s, g)

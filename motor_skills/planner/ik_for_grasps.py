@@ -57,29 +57,43 @@ class PBIK(object):
 
     # goal ee xyz position
     # goal ee wxyz orientation
-    def get_ik_pose(self, goal_position, goal_orientation):
+    def get_ik_pose(self, goal_position, goal_orientation, verbose=False):
 
         # visualize plan
         p.connect(p.GUI)
         #p.connect(p.DIRECT)
         self.pbsetup()
 
+        if verbose:
+            eepose = p.getLinkState(0,self.ndof)
+            print("ee pose state before ik:",)
+            self.print_ee_pose(eepose)
+
 
         #get accurate solution not including orientation
         s = self.accurateCalculateInverseKinematics(0, self.ndof, goal_position, goal_orientation)
         #set joints
         for i in range(len(s)):
-            #p.resetJointState(0,i,s[i],0)
             p.resetJointState(0,i,s[i],0)
         p.stepSimulation()
 
-        #Info on eepose after setting joints
-        eepose = p.getLinkState(0,6)
-        print("ee pose state: ",eepose)
-        _=input('Press enter to exit ')
+        if verbose:
+            #Info on eepose after setting joints
+            eepose = p.getLinkState(0,self.ndof)
+            print("ee pose state after ik:",)
+            self.print_ee_pose(eepose)
+            print("Result", s)
+
+            _=input('Press enter to exit ')
+
         p.disconnect()
 
         return(s)
+
+    def print_ee_pose(self, pose_tuple):
+        for pt in pose_tuple:
+            print(pt,)
+        print()
     
 def normalize(v):
     norm = np.linalg.norm(v)
@@ -96,7 +110,8 @@ def demo():
     thresh = 0.0001
     max_iter = 10000
     ik = PBIK(ndof, urdf_path, door_path, thresh, max_iter)
-    ik.get_ik_pose([0, 0.2, 0.2], [1, 0, 0, 0])
+    ik_result = ik.get_ik_pose([0.3, 0.3, 0.4], [0.5, -0.5, -0.5, -0.5], True)
+    print("ik_result", ik_result)
 
     print("Done!")
 

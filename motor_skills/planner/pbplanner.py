@@ -42,14 +42,15 @@ class pbValidityChecker(ob.StateValidityChecker):
             self.otherObj_states[door_uid] = [0,0]
             self.otherObj_dofs[door_uid] = [0,2]
 
-    # sets state and checks joint limits and collision
-    def isValid(self, state):
-
-        # first reset robot state
+    def resetRobot(self, state):
+        # TODO(mcorsaro): make this compatible with all "state" types (ompl.base._base.RealVectorStateInternal)
+        '''if len(state) != NDOF:
+            print("Resetting robot with states of size", len(state), "but robot is of size", NDOF)
+            sys.exit()'''
         for i in range(NDOF):
             p.resetJointState(0,i,state[i],0)
 
-        # then reset scene state.
+    def resetScene(self):
         # TODO: more general
         for i in range(len(self.otherIds)):
             for j in range(len(self.otherObj_dofs[self.otherIds[i]])):
@@ -57,6 +58,11 @@ class pbValidityChecker(ob.StateValidityChecker):
                                   self.otherObj_dofs[self.otherIds[i]][j],
                                   self.otherObj_states[self.otherIds[i]][j])
 
+    # sets state and checks joint limits and collision
+    def isValid(self, state):
+
+        self.resetRobot(state)
+        self.resetScene()
 
         p.stepSimulation()
         return (
@@ -138,6 +144,9 @@ class PbPlanner(object):
         self.plannerType = 'RRTstar'
 
     def plan(self, start_q, goal_q):
+
+        self.validityChecker.resetRobot(start_q)
+        self.validityChecker.resetScene()
 
         # start and goal configs
         start = ob.State(self.space)

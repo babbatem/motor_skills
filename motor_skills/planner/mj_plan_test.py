@@ -50,7 +50,9 @@ class MujocoPlanExecutor(object):
         # make some plans
         planner = PbPlanner(self.load_door)
         start = planner.validityChecker.sample_state()
-        goal = [-0.1589180907085973, 1.1245753846210882, 0.8936496967854405, -1.4150251357344403, 1.5338966490406984, 1.3421998853827806]
+        goal_position = [0.3, 0.3, 0.4]
+        goal_orientation = [0.5, -0.5, -0.5, -0.5]
+        goal = planner.accurateCalculateInverseKinematics(0, self.NDOF, goal_position, goal_orientation)
         if planner.validityChecker.isValid(goal):
             #g = planner.validityChecker.sample_state()
             result=planner.plan(start, goal)

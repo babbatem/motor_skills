@@ -114,6 +114,9 @@ class PbPlanner(object):
     def __init__(self, load_door=False):
         super(PbPlanner, self).__init__()
 
+        self.ik_thresh = 0.0001
+        self.ik_max_iter = 10000
+
         # setup pybullet
         # p.connect(p.GUI)
         p.connect(p.DIRECT)
@@ -142,6 +145,36 @@ class PbPlanner(object):
 
         self.runTime = 5.0
         self.plannerType = 'RRTstar'
+
+    def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat):
+        closeEnough = False
+        c_iter = 0
+        dist2 = 1e30
+        while (not closeEnough and c_iter < self.ik_max_iter):
+            jointPoses = p.calculateInverseKinematics(robotId, endEffectorIndex, targetPos, targetQuat)
+            for i in range(NDOF):
+                p.resetJointState(robotId, i, jointPoses[i])
+            ls = p.getLinkState(robotId, endEffectorIndex)
+            newPos = ls[4]
+            diff = [targetPos[0] - newPos[0], targetPos[1] - newPos[1], targetPos[2] - newPos[2]]
+            dist2 = (diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2])
+            closeEnough = (dist2 < self.ik_thresh)
+            c_iter = c_iter + 1
+        #print ("Num iter: "+str(iter) + "threshold: "+str(dist2))
+        return jointPoses
+
+    # goal ee xyz position
+    # goal ee wxyz orientation
+    def get_ik_pose(self, goal_position, goal_orientation, verbose=False):
+
+        #get accurate solution not including orientation
+        s = self.accurateCalculateInverseKinematics(0, NDOF, goal_position, goal_orientation)
+        #set joints
+        for i in range(len(s)):
+            p.resetJointState(0,i,s[i],0)
+        p.stepSimulation()
+
+        return(s)
 
     def plan(self, start_q, goal_q):
 

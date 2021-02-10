@@ -21,6 +21,30 @@ class MujocoPlanExecutor(object):
         self.sim = MjSim(model)
         self.viewer = MjViewer(self.sim)
 
+        ##### Fingers #####
+        # compute indices and per timestep delta q
+        self.gDOF = 6
+        self.tDOF = self.NDOF + self.gDOF
+        self.max_finger_delta = 1.3
+        self.grasp_steps = 500
+        self.pregrasp_steps = 500
+        self.pregrasp_goal = [0., 0., -0.04]
+
+        self.delta = np.zeros(self.tDOF)
+        self.finger_joint_idxs = []
+        for i in range(1,4):
+            base_idx = self.sim.model.joint_name2id("j2s6s300_joint_finger_" + str(i))
+            tip_idx = self.sim.model.joint_name2id("j2s6s300_joint_finger_tip_" + str(i))
+            self.finger_joint_idxs.append(base_idx)
+            self.finger_joint_idxs.append(tip_idx)
+            self.delta[base_idx] = self.max_finger_delta/self.grasp_steps
+            self.delta[tip_idx] = self.max_finger_delta/self.grasp_steps
+
+        # List of body names
+        # self.sim.model.body_names
+
+        self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
+
     def executePlan(self, plan):
         plan.interpolate(1000)
         H = plan.getStateCount()
@@ -45,7 +69,39 @@ class MujocoPlanExecutor(object):
             self.sim.step()
             self.viewer.render()
 
-    def run_demo(self):
+    # https://github.com/babbatem/motor_skills/blob/impedance/motor_skills/cip/MjGraspHead.py
+    def closeFingers(self):
+        # % close fingers
+        new_pos = copy.deepcopy(self.sim.data.qpos[:self.tDOF])
+        for t in range(self.grasp_steps):
+            new_pos += self.delta
+
+            # % see which sensors are reporting force
+            touched = np.where(self.sim.data.sensordata[:6] != 0.0)[0]
+
+            # % if they are all in contact, we're done
+            if len(touched) == 6:
+                break
+
+            # % otherwise, compute new setpoints for those which are not in contact
+            current_pos = self.sim.data.qpos
+            for touch_point in touched:
+                new_pos[self.finger_joint_idxs[touch_point]] = current_pos[self.finger_joint_idxs[touch_point]]
+
+            # % compute torque and step
+            # TODO(mcorsaro): stop at joint limits
+            self.sim.data.ctrl[:] = mjc.pd([0] * self.tDOF, [0] * self.tDOF, new_pos, self.sim, ndof=self.tDOF, kp=np.eye(self.tDOF)*300)
+            self.sim.forward()
+            self.sim.step()
+
+            if self.viewer is not None:
+                self.viewer.render()
+
+    def resetDoor(self):
+        for mj_id in self.door_dofs:
+            self.sim.data.qpos[mj_id]=0.0
+
+    def runDemo(self):
 
         # make some plans
         planner = PbPlanner(self.load_door)
@@ -63,6 +119,8 @@ class MujocoPlanExecutor(object):
             _=input('enter to start execution')
 
             self.executePlan(result)
+
+            self.closeFingers()
 
             current_joint_vals = self.sim.data.qpos[:self.NDOF]
             if planner.validityChecker.isValid(current_joint_vals):
@@ -88,4 +146,4 @@ class MujocoPlanExecutor(object):
 
 if __name__ == '__main__':
     mjp = MujocoPlanExecutor()
-    mjp.run_demo()
+    mjp.runDemo()

@@ -4,9 +4,9 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 
-from ompl import util as ou
-from ompl import base as ob
-from ompl import geometric as og
+#from ompl import util as ompl_util
+from ompl import base as ompl_base
+#from ompl import geometric as ompl_geo
 
 from motor_skills.planner.ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthObjWithCostToGo, getPathLengthObjective
 
@@ -27,7 +27,7 @@ def pbsetup(load_door):
 # not yet doing multiple physics clients (though, should be fine for multiple instances of python?)
 # ASSUMES robotId is 0, planeId is 1.
 # ASSUMES NDOF DoF
-class pbValidityChecker(ob.StateValidityChecker):
+class pbValidityChecker(ompl_base.StateValidityChecker):
     def __init__(self, si, door_uid=None):
         super(pbValidityChecker, self).__init__(si)
 
@@ -125,16 +125,16 @@ class PbPlanner(object):
         # setup space
         lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
         upper = np.array([p.getJointInfo(0, i)[9] for i in range(NDOF)])
-        bounds = ob.RealVectorBounds(NDOF)
+        bounds = ompl_base.RealVectorBounds(NDOF)
         for i in range(NDOF):
             bounds.setLow(i,lower[i])
             bounds.setHigh(i,upper[i])
 
-        self.space = ob.RealVectorStateSpace(NDOF)
+        self.space = ompl_base.RealVectorStateSpace(NDOF)
         self.space.setBounds(bounds)
 
         # Construct a space information instance for this state space
-        self.si = ob.SpaceInformation(self.space)
+        self.si = ompl_base.SpaceInformation(self.space)
 
         # Set the object used to check which states in the space are valid
         # TODO: Lookup door Uid. Currently assume it's 2 because robot is 0 and plane is 1
@@ -178,20 +178,25 @@ class PbPlanner(object):
 
     def plan(self, start_q, goal_q):
 
+        if (not self.validityChecker.isValid(start_q)):
+            raise Exception("Start joints put robot in collision.")
+        if (not self.validityChecker.isValid(goal_q)):
+            raise Exception("Goal joints put robot in collision.")
+
         self.validityChecker.resetRobot(start_q)
         self.validityChecker.resetScene()
 
         # start and goal configs
-        start = ob.State(self.space)
+        start = ompl_base.State(self.space)
         for i in range(len(start_q)):
             start[i] = start_q[i]
 
-        goal = ob.State(self.space)
+        goal = ompl_base.State(self.space)
         for i in range(len(start_q)):
             goal[i] = goal_q[i]
 
         # setup and solve
-        pdef = ob.ProblemDefinition(self.si)
+        pdef = ompl_base.ProblemDefinition(self.si)
         pdef.setStartAndGoalStates(start, goal)
         pdef.setOptimizationObjective(getPathLengthObjective(self.si))
         optimizingPlanner = allocatePlanner(self.si, self.plannerType)

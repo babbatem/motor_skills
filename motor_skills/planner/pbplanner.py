@@ -6,9 +6,7 @@ import pybullet_data
 
 #from ompl import util as ompl_util
 from ompl import base as ompl_base
-#from ompl import geometric as ompl_geo
-
-from motor_skills.planner.ompl_optimal_demo import allocateObjective, allocatePlanner, getPathLengthObjWithCostToGo, getPathLengthObjective
+from ompl import geometric as ompl_geo
 
 NDOF = 6
 URDFPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
@@ -144,7 +142,10 @@ class PbPlanner(object):
         self.si.setup()
 
         self.runTime = 5.0
-        self.plannerType = 'RRTstar'
+        self.plannerType = 'LazyPRMstar'
+
+        #ompl_base.PlannerDataStorage.store
+        #ompl_base.PlannerDataStorage.load
 
     def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat):
         closeEnough = False
@@ -198,8 +199,8 @@ class PbPlanner(object):
         # setup and solve
         pdef = ompl_base.ProblemDefinition(self.si)
         pdef.setStartAndGoalStates(start, goal)
-        pdef.setOptimizationObjective(getPathLengthObjective(self.si))
-        optimizingPlanner = allocatePlanner(self.si, self.plannerType)
+        pdef.setOptimizationObjective(ompl_base.PathLengthOptimizationObjective(self.si))
+        optimizingPlanner = ompl_geo.LazyPRMstar(self.si)
         optimizingPlanner.setProblemDefinition(pdef)
         optimizingPlanner.setup()
         solved = optimizingPlanner.solve(self.runTime)

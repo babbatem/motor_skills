@@ -16,7 +16,7 @@ def pbsetup(load_door):
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0,0,-10)
     p.loadURDF(URDFPATH, useFixedBase=True)
-    p.loadURDF("plane.urdf", [0, 0, 0])
+    p.loadURDF("plane.urdf", [0, 0, 0]) # This is also in URDF
     if load_door:
         p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
     return

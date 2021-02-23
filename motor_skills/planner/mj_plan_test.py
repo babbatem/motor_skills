@@ -5,6 +5,7 @@ import copy
 import motor_skills
 import motor_skills.core.mj_control as mjc
 from motor_skills.planner.pbplanner import PbPlanner
+from motor_skills.planner.mj_point_clouds import PointCloudGenerator
 
 from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer
@@ -13,18 +14,23 @@ class MujocoPlanExecutor(object):
     def __init__(self, load_door=True):
         super(MujocoPlanExecutor, self).__init__()
 
-        self.NDOF=6
         self.load_door = load_door
 
-        model = load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml') if load_door else \
-            load_model_from_path('/home/mcorsaro/.mujoco/motor_skills/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
+        motor_skills_dir = "/home/mcorsaro/.mujoco/motor_skills/"
+
+        model = load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml') if load_door else \
+                load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
         self.sim = MjSim(model)
         self.viewer = MjViewer(self.sim)
 
         ##### Fingers #####
         # compute indices and per timestep delta q
+        # Arm DoF
+        self.aDOF=6
+        # Gripper DoF
         self.gDOF = 6
-        self.tDOF = self.NDOF + self.gDOF
+        # Total robot dof
+        self.tDOF = self.aDOF + self.gDOF
         self.max_finger_delta = 1.3
         self.grasp_steps = 500
         self.pregrasp_steps = 500
@@ -45,6 +51,32 @@ class MujocoPlanExecutor(object):
         # List of body names
         # self.sim.model.body_names
 
+        print("cam_bodyid", self.sim.model.cam_bodyid)
+        print("cam_fovy", self.sim.model.cam_fovy)
+        print("cam_ipd", self.sim.model.cam_ipd)
+        print("cam_mat0", self.sim.model.cam_mat0)
+        print("cam_mode", self.sim.model.cam_mode)
+        print("cam_pos", self.sim.model.cam_pos)
+        print("cam_pos0", self.sim.model.cam_pos0)
+        print("cam_poscom0", self.sim.model.cam_poscom0)
+        print("cam_quat", self.sim.model.cam_quat)
+        print("cam_targetbodyid", self.sim.model.cam_targetbodyid)
+        print("cam_user", self.sim.model.cam_user)
+        print("camera_id2name", self.sim.model.camera_id2name)
+        print("camera_name2id", self.sim.model.camera_name2id)
+        print("camera_names", self.sim.model.camera_names)
+        for cam_id in self.sim.model.cam_bodyid:
+            print("body_pos", self.sim.model.body_pos[cam_id])
+            print("body_quat", self.sim.model.body_quat[cam_id])
+
+        self.pc_gen = PointCloudGenerator(self.sim, self.sim.model.camera_names)
+        for i in range(len(self.sim.model.camera_names)):
+            img = self.pc_gen.capture_image(i)
+            self.pc_gen.save_depth_img(img, "/home/mcorsaro/Desktop/", "test_" + str(i))
+            cimg = self.pc_gen.capture_image(i, False)
+            self.pc_gen.save_depth_img(cimg, "/home/mcorsaro/Desktop/", "ctest_" + str(i))
+        sys.exit()
+
         self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
 
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
@@ -56,20 +88,20 @@ class MujocoPlanExecutor(object):
             state_t = plan.getState(t)
             target_q = []
             target_qd = []
-            for i in range(self.NDOF):
+            for i in range(self.aDOF):
                 target_q.append(state_t[i])
                 target_qd.append(0.0)
 
-            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.NDOF, kp=np.eye(self.NDOF)*300)
-            self.sim.data.ctrl[:self.NDOF]=torques
+            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*300)
+            self.sim.data.ctrl[:self.aDOF]=torques
             self.sim.step()
             self.viewer.render()
             time.sleep(0.01)
 
         # Make sure it reaches the goal
         for t in range(200):
-            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.NDOF, kp=np.eye(self.NDOF)*100)
-            self.sim.data.ctrl[:self.NDOF]=torques
+            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*100)
+            self.sim.data.ctrl[:self.aDOF]=torques
             self.sim.step()
             self.viewer.render()
 
@@ -85,7 +117,7 @@ class MujocoPlanExecutor(object):
             # check each finger to determine if links are in contact
 
             fingers_stopped = [False]*int(self.gDOF/self.num_links_per_finger)
-            touched_finger_idxs = [touched_link + self.NDOF for touched_link in touched]
+            touched_finger_idxs = [touched_link + self.aDOF for touched_link in touched]
             for finger_i in range(int(self.gDOF/self.num_links_per_finger)):
                 base_idx = self.finger_base_idxs[finger_i]
                 tip_idx = self.finger_tip_idxs[finger_i]
@@ -135,13 +167,13 @@ class MujocoPlanExecutor(object):
         planner = PbPlanner(self.load_door)
         #start = planner.validityChecker.sample_state()
         start = [0, np.pi, np.pi, 0, np.pi, 0]
-        self.sim.data.qpos[:self.NDOF] = start
+        self.sim.data.qpos[:self.aDOF] = start
         self.sim.step()
         self.viewer.render()
         
         pregrasp_position = [0.3, 0.3, 0.4]
         grasp_orientation = [0.5, -0.5, -0.5, -0.5]
-        pregrasp_goal = planner.accurateCalculateInverseKinematics(0, self.NDOF, pregrasp_position, grasp_orientation)
+        pregrasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation)
         print("Now planning pre-grasp motion.")
         pregrasp_path=planner.plan(start, pregrasp_goal)
         _=input('enter to start execution')
@@ -149,9 +181,9 @@ class MujocoPlanExecutor(object):
         self.executePlan(pregrasp_path)
 
         grasp_position = [0.3, 0.33, 0.4]
-        grasp_goal = planner.accurateCalculateInverseKinematics(0, self.NDOF, grasp_position, grasp_orientation)
+        grasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation)
         print("Now planning grasp motion.")
-        current_joint_vals = self.sim.data.qpos[:self.NDOF]
+        current_joint_vals = self.sim.data.qpos[:self.aDOF]
         grasp_path=planner.plan(current_joint_vals, grasp_goal)
         _=input('enter to start execution')
         self.executePlan(grasp_path)
@@ -159,7 +191,7 @@ class MujocoPlanExecutor(object):
         # TODO(mcorsaro): Update finger position in planner after executing grasp
         self.closeFingers()
 
-        current_joint_vals = self.sim.data.qpos[:self.NDOF]
+        current_joint_vals = self.sim.data.qpos[:self.aDOF]
         back_result = planner.plan(current_joint_vals, start)
 
         self.viewer.render()

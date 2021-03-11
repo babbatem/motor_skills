@@ -51,6 +51,7 @@ class MujocoPlanExecutor(object):
         # List of body names
         # self.sim.model.body_names
 
+        '''
         print("cam_bodyid", self.sim.model.cam_bodyid)
         print("cam_fovy", self.sim.model.cam_fovy)
         print("cam_ipd", self.sim.model.cam_ipd)
@@ -68,18 +69,18 @@ class MujocoPlanExecutor(object):
         for cam_id in self.sim.model.cam_bodyid:
             print("body_pos", self.sim.model.body_pos[cam_id])
             print("body_quat", self.sim.model.body_quat[cam_id])
+        '''
+        
 
-        self.pc_gen = PointCloudGenerator(self.sim, self.sim.model.camera_names)
-        for i in range(len(self.sim.model.camera_names)):
-            img = self.pc_gen.capture_image(i)
-            self.pc_gen.save_depth_img(img, "/home/mcorsaro/Desktop/", "test_" + str(i))
-            cimg = self.pc_gen.capture_image(i, False)
-            self.pc_gen.save_depth_img(cimg, "/home/mcorsaro/Desktop/", "ctest_" + str(i))
-        sys.exit()
+        self.pc_gen = PointCloudGenerator(self.sim)
 
         self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
 
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
+
+        cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
+        print("Received cloud and normals of shape", cloud_with_normals.shape, cloud_with_normals.min(), cloud_with_normals.max())
+        sys.exit()
 
     def executePlan(self, plan):
         plan.interpolate(1000)

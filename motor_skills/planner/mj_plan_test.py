@@ -79,7 +79,9 @@ class MujocoPlanExecutor(object):
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
 
         cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
-        print("Received cloud and normals of shape", cloud_with_normals.shape, cloud_with_normals.min(), cloud_with_normals.max())
+        cloud_points = np.asarray(cloud_with_normals.points)
+        cloud_normals = np.asarray(cloud_with_normals.normals)
+        print("Received cloud and normals of shape", cloud_points.shape, cloud_normals.shape, "[", cloud_points.min(), cloud_points.max(), "], [", cloud_normals.min(), cloud_normals.max(), "]")
         sys.exit()
 
     def executePlan(self, plan):

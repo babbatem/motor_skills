@@ -10,12 +10,10 @@ def generatePointCloud():
     aspect_ratio = img_width/img_height
     # sim.model.cam_fovy[0] = 60
     fovy = math.radians(60)
-    fovx = 2 * math.atan(math.tan(fovy / 2) * aspect_ratio)
-    fx = 1/math.tan(fovx/2.0)*1000
-    fy = 1/math.tan(fovy/2.0)*1000
+    f = img_height / (2 * math.tan(fovy / 2))
     cx = img_width/2
     cy = img_height/2
-    cam_mat = o3d.camera.PinholeCameraIntrinsic(o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault)#img_width, img_height, fx, fy, cx, cy)
+    cam_mat = o3d.camera.PinholeCameraIntrinsic(img_width, img_height, f, f, cx, cy)
     print("Cam mat\n", cam_mat.intrinsic_matrix)
 
     depth_img = captureImage()

@@ -97,8 +97,6 @@ def cammat2o3d(cam_mat, width, height):
 
     return o3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
 
-# 
-# and combines them into point clouds
 """
 Class that renders depth images in MuJoCo, processes depth images from
     multiple cameras, converts them to point clouds, and processes the point
@@ -163,7 +161,7 @@ class PointCloudGenerator(object):
             # In MuJoCo, we assume that a camera is specified in XML as a body
             #    with pose p, and that that body has a camera sub-element
             #    with pos and euler 0.
-            #    Therefore, camera with body euler 0 must be rotated about
+            #    Therefore, camera frame with body euler 0 must be rotated about
             #    x-axis by 180 degrees to align it with the world frame.
             b2w_r = quat2Mat([0, 1, 0, 0])
             c2w_r = np.matmul(c2b_r, b2w_r)
@@ -182,13 +180,10 @@ class PointCloudGenerator(object):
 
             o3d_clouds.append(transformed_cloud)
 
-        # DON'T VISUALIZE UNTIL ALL CLOUDS ARE RENDERED - MUJOCO gets weird
         combined_cloud = o3d.geometry.PointCloud()
         for cloud in o3d_clouds:
             combined_cloud += cloud
 
-        axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        o3d.visualization.draw_geometries([combined_cloud, axes])
         return combined_cloud
 
     # https://github.com/htung0101/table_dome/blob/master/table_dome_calib/utils.py#L160

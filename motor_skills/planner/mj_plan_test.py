@@ -5,10 +5,12 @@ import copy
 import motor_skills
 import motor_skills.core.mj_control as mjc
 from motor_skills.planner.pbplanner import PbPlanner
-from motor_skills.planner.mj_point_clouds import PointCloudGenerator
+import motor_skills.planner.mj_point_clouds as mjpc
 
 from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer
+
+import open3d as o3d
 
 class MujocoPlanExecutor(object):
     def __init__(self, load_door=True):
@@ -48,40 +50,12 @@ class MujocoPlanExecutor(object):
             self.finger_base_idxs.append(base_idx)
             self.finger_tip_idxs.append(tip_idx)
 
-        # List of body names
-        # self.sim.model.body_names
-
-        
-        #print("cam_bodyid", self.sim.model.cam_bodyid)
-        #print("cam_fovy", self.sim.model.cam_fovy)
-        #print("cam_ipd", self.sim.model.cam_ipd)
-        print("cam_mat0", self.sim.model.cam_mat0)
-        #print("cam_mode", self.sim.model.cam_mode)
-        #print("cam_pos", self.sim.model.cam_pos)
-        #print("cam_pos0", self.sim.model.cam_pos0)
-        print("cam_poscom0", self.sim.model.cam_poscom0)
-        #print("cam_quat", self.sim.model.cam_quat)
-        #print("cam_targetbodyid", self.sim.model.cam_targetbodyid)
-        #print("cam_user", self.sim.model.cam_user)
-        #print("camera_id2name", self.sim.model.camera_id2name)
-        #print("camera_name2id", self.sim.model.camera_name2id)
-        #print("camera_names", self.sim.model.camera_names)
-        for cam_id in self.sim.model.cam_bodyid:
-            print("body_pos", self.sim.model.body_pos[cam_id])
-            print("body_quat", self.sim.model.body_quat[cam_id])
-        
-
-        self.pc_gen = PointCloudGenerator(self.sim, min_bound=(-2., -2., 0.05), max_bound=(2., 2., 2.))
+        #door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
+        handle_bounds = [(-2., -2., 0.05), (2., 0.4, 2.)]
+        self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=handle_bounds[0], max_bound=handle_bounds[1])
 
         self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
-
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
-
-        cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
-        cloud_points = np.asarray(cloud_with_normals.points)
-        cloud_normals = np.asarray(cloud_with_normals.normals)
-        print("Received cloud and normals of shape", cloud_points.shape, cloud_normals.shape, "[", cloud_points.min(), cloud_points.max(), "], [", cloud_normals.min(), cloud_normals.max(), "]")
-        sys.exit()
 
     def executePlan(self, plan):
         plan.interpolate(1000)
@@ -172,9 +146,23 @@ class MujocoPlanExecutor(object):
         self.sim.data.qpos[:self.aDOF] = start
         self.sim.step()
         self.viewer.render()
+
+        cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
+        print("Received cloud and normals of shapes", np.asarray(cloud_with_normals.points).shape, np.asarray(cloud_with_normals.normals).shape)
         
         pregrasp_position = [0.3, 0.3, 0.4]
         grasp_orientation = [0.5, -0.5, -0.5, -0.5]
+        grasp_position = [0.3, 0.33, 0.4]
+        
+        axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        grasp_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        grasp_pose = mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation))
+        grasp_axes.transform(grasp_pose)
+
+        o3d.visualization.draw_geometries([cloud_with_normals, axes, grasp_axes])
+        while True:
+            self.viewer.render()
+
         pregrasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation)
         print("Now planning pre-grasp motion.")
         pregrasp_path=planner.plan(start, pregrasp_goal)
@@ -182,7 +170,6 @@ class MujocoPlanExecutor(object):
 
         self.executePlan(pregrasp_path)
 
-        grasp_position = [0.3, 0.33, 0.4]
         grasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation)
         print("Now planning grasp motion.")
         current_joint_vals = self.sim.data.qpos[:self.aDOF]

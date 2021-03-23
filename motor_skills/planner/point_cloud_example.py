@@ -7,7 +7,6 @@ def generatePointCloud():
     img_width = 640
     img_height = 480
 
-    aspect_ratio = img_width/img_height
     # sim.model.cam_fovy[0] = 60
     fovy = math.radians(60)
     f = img_height / (2 * math.tan(fovy / 2))

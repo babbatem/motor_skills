@@ -51,25 +51,24 @@ class MujocoPlanExecutor(object):
         # List of body names
         # self.sim.model.body_names
 
-        '''
-        print("cam_bodyid", self.sim.model.cam_bodyid)
-        print("cam_fovy", self.sim.model.cam_fovy)
-        print("cam_ipd", self.sim.model.cam_ipd)
+        
+        #print("cam_bodyid", self.sim.model.cam_bodyid)
+        #print("cam_fovy", self.sim.model.cam_fovy)
+        #print("cam_ipd", self.sim.model.cam_ipd)
         print("cam_mat0", self.sim.model.cam_mat0)
-        print("cam_mode", self.sim.model.cam_mode)
-        print("cam_pos", self.sim.model.cam_pos)
-        print("cam_pos0", self.sim.model.cam_pos0)
+        #print("cam_mode", self.sim.model.cam_mode)
+        #print("cam_pos", self.sim.model.cam_pos)
+        #print("cam_pos0", self.sim.model.cam_pos0)
         print("cam_poscom0", self.sim.model.cam_poscom0)
-        print("cam_quat", self.sim.model.cam_quat)
-        print("cam_targetbodyid", self.sim.model.cam_targetbodyid)
-        print("cam_user", self.sim.model.cam_user)
-        print("camera_id2name", self.sim.model.camera_id2name)
-        print("camera_name2id", self.sim.model.camera_name2id)
-        print("camera_names", self.sim.model.camera_names)
+        #print("cam_quat", self.sim.model.cam_quat)
+        #print("cam_targetbodyid", self.sim.model.cam_targetbodyid)
+        #print("cam_user", self.sim.model.cam_user)
+        #print("camera_id2name", self.sim.model.camera_id2name)
+        #print("camera_name2id", self.sim.model.camera_name2id)
+        #print("camera_names", self.sim.model.camera_names)
         for cam_id in self.sim.model.cam_bodyid:
             print("body_pos", self.sim.model.body_pos[cam_id])
             print("body_quat", self.sim.model.body_quat[cam_id])
-        '''
         
 
         self.pc_gen = PointCloudGenerator(self.sim)

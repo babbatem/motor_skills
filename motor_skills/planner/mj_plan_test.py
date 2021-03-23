@@ -71,7 +71,7 @@ class MujocoPlanExecutor(object):
             print("body_quat", self.sim.model.body_quat[cam_id])
         
 
-        self.pc_gen = PointCloudGenerator(self.sim)
+        self.pc_gen = PointCloudGenerator(self.sim, min_bound=(-2., -2., 0.05), max_bound=(2., 2., 2.))
 
         self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
 

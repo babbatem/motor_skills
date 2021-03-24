@@ -1,11 +1,14 @@
 import numpy as np
 import time
 import copy
+import math
 
 import motor_skills
 import motor_skills.core.mj_control as mjc
 from motor_skills.planner.pbplanner import PbPlanner
+
 import motor_skills.planner.mj_point_clouds as mjpc
+import motor_skills.planner.grasp_pose_generator as gpg
 
 from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer
@@ -51,7 +54,7 @@ class MujocoPlanExecutor(object):
             self.finger_tip_idxs.append(tip_idx)
 
         #door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
-        handle_bounds = [(-2., -2., 0.05), (2., 0.4, 2.)]
+        handle_bounds = [(0.189, -2., 0.05), (2., 0.4, 2.)]
         self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=handle_bounds[0], max_bound=handle_bounds[1])
 
         self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
@@ -149,17 +152,19 @@ class MujocoPlanExecutor(object):
 
         cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
         print("Received cloud and normals of shapes", np.asarray(cloud_with_normals.points).shape, np.asarray(cloud_with_normals.normals).shape)
+
+        pose_gen = gpg.GraspPoseGenerator(cloud_with_normals, rotation_values_about_approach=[0, math.pi/2])
+        grasp_poses = pose_gen.proposeGraspPosesAtCloudIndex(0)
         
         pregrasp_position = [0.3, 0.3, 0.4]
         grasp_orientation = [0.5, -0.5, -0.5, -0.5]
         grasp_position = [0.3, 0.33, 0.4]
         
         axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        grasp_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        grasp_pose = mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation))
-        grasp_axes.transform(grasp_pose)
+        grasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation)))
+        sampled_grasp_axes = [mjpc.o3dTFAtPose(grasp_pose) for grasp_pose in grasp_poses]
 
-        o3d.visualization.draw_geometries([cloud_with_normals, axes, grasp_axes])
+        o3d.visualization.draw_geometries([cloud_with_normals, axes, grasp_axes] + sampled_grasp_axes)
         while True:
             self.viewer.render()
 

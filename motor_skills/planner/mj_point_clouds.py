@@ -98,6 +98,23 @@ def cammat2o3d(cam_mat, width, height):
     return o3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
 
 """
+For visualization purposes, creates an o3d mesh at a specified pose and scales
+    down axes size.
+
+@param grasp_pose:  4x4 transformation matrix
+@param scale_down:  number of times smaller axes should appear
+
+@return grasp_axes:  o3d TriangleMesh with scaled axes at specified pose
+"""
+def o3dTFAtPose(grasp_pose, scale_down=10):
+    grasp_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+    scaling_maxtrix = np.ones((4,4))
+    scaling_maxtrix[:3, :3] = scaling_maxtrix[:3, :3]/scale_down
+    scaled_grasp_pose = grasp_pose*scaling_maxtrix
+    grasp_axes.transform(scaled_grasp_pose)
+    return grasp_axes
+
+"""
 Class that renders depth images in MuJoCo, processes depth images from
     multiple cameras, converts them to point clouds, and processes the point
     clouds

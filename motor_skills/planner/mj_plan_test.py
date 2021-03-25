@@ -53,7 +53,7 @@ class MujocoPlanExecutor(object):
             self.finger_base_idxs.append(base_idx)
             self.finger_tip_idxs.append(tip_idx)
 
-        #door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
+        door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
         handle_bounds = [(0.189, -2., 0.05), (2., 0.4, 2.)]
         self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=handle_bounds[0], max_bound=handle_bounds[1])
 
@@ -140,9 +140,8 @@ class MujocoPlanExecutor(object):
         for mj_id in self.door_dofs:
             self.sim.data.qpos[mj_id]=0.0
 
-    def runDemo(self):
+    def generateData(self):
 
-        # make some plans
         planner = PbPlanner(self.load_door)
         #start = planner.validityChecker.sample_state()
         start = [0, np.pi, np.pi, 0, np.pi, 0]
@@ -151,20 +150,22 @@ class MujocoPlanExecutor(object):
         self.viewer.render()
 
         cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
-        print("Received cloud and normals of shapes", np.asarray(cloud_with_normals.points).shape, np.asarray(cloud_with_normals.normals).shape)
-
+        num_points = np.asarray(cloud_with_normals.points).shape[0]
         pose_gen = gpg.GraspPoseGenerator(cloud_with_normals, rotation_values_about_approach=[0, math.pi/2])
-        grasp_poses = pose_gen.proposeGraspPosesAtCloudIndex(0)
-        
-        pregrasp_position = [0.3, 0.3, 0.4]
-        grasp_orientation = [0.5, -0.5, -0.5, -0.5]
-        grasp_position = [0.3, 0.33, 0.4]
-        
-        axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        grasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation)))
-        sampled_grasp_axes = [mjpc.o3dTFAtPose(grasp_pose) for grasp_pose in grasp_poses]
 
-        o3d.visualization.draw_geometries([cloud_with_normals, axes, grasp_axes] + sampled_grasp_axes)
+        grasp_poses = []
+        for i in range(num_points):
+            grasp_poses += pose_gen.proposeGraspPosesAtCloudIndex(i)
+
+        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        print("Generated", len(grasp_poses), "grasp poses.")
+        for grasp_pose in grasp_poses[:1]:
+            pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, 0.15)
+            o3d.visualization.draw_geometries([world_axes, cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
+
+            pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
+            grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
+
         while True:
             self.viewer.render()
 
@@ -197,4 +198,4 @@ class MujocoPlanExecutor(object):
 
 if __name__ == '__main__':
     mjp = MujocoPlanExecutor()
-    mjp.runDemo()
+    mjp.generateData()

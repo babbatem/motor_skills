@@ -1,5 +1,6 @@
 import math
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from PIL import Image as PIL_Image
 
@@ -16,6 +17,10 @@ def quat2Mat(quat):
     if len(quat) != 4:
         print("Quaternion", quat, "invalid when generating transformation matrix.")
         raise ValueError
+    # MuJoCo and Open3D use wxyz, scipy uses xyzw
+    quat_xyzw = quat[1:] + [quat[0]]
+    quat_scipy = Rotation(quat_xyzw)
+    return quat_scipy.as_matrix()
 
     # Note that the following code snippet can be used to generate the 3x3
     #    rotation matrix, we don't use it because this file should not depend
@@ -27,30 +32,31 @@ def quat2Mat(quat):
     res = res.reshape(3,3)
     '''
 
-    # This function is lifted directly from scipy source code
-    #https://github.com/scipy/scipy/blob/v1.3.0/scipy/spatial/transform/rotation.py#L956
-    w = quat[0]
-    x = quat[1]
-    y = quat[2]
-    z = quat[3]
+"""
+Generates quaternion list (wxyz) from numpy rotation matrix
 
-    x2 = x * x
-    y2 = y * y
-    z2 = z * z
-    w2 = w * w
+@param np_rot_mat: 3x3 rotation matrix as numpy array
 
-    xy = x * y
-    zw = z * w
-    xz = x * z
-    yw = y * w
-    yz = y * z
-    xw = x * w
+@return quat: w-x-y-z quaternion rotation list
+"""
+def mat2Quat(np_rot_mat):
+    rot = Rotation.from_matrix(np_rot_mat)
+    quat_xyzw = rot.as_quat()
+    quat_wxyz = [quat_xyzw[3]] + list(quat_xyzw)[:3]
+    return quat_wxyz
 
-    rot_mat_arr = [x2 - y2 - z2 + w2, 2 * (xy - zw), 2 * (xz + yw), \
-        2 * (xy + zw), - x2 + y2 - z2 + w2, 2 * (yz - xw), \
-        2 * (xz - yw), 2 * (yz + xw), - x2 - y2 + z2 + w2]
-    np_rot_mat = rotMatList2NPRotMat(rot_mat_arr)
-    return np_rot_mat
+"""
+Generates position list and quaternion list (wxyz) from numpy transformation matrix
+
+@param np_mat: 4x4 transformation matrix as numpy array
+
+@return pos:  x-y-z position list
+@return quat: w-x-y-z quaternion rotation list
+"""
+def mat2PosQuat(np_mat):
+    pos = list(np_mat[:3,3])
+    quat_wxyz = mat2Quat(np_mat[:3,:3])
+    return (pos, quat_wxyz)
 
 """
 Generates numpy rotation matrix from rotation matrix as list len(9)
@@ -65,7 +71,7 @@ def rotMatList2NPRotMat(rot_mat_arr):
     return np_rot_mat
 
 """
-Generates numpy transformation matrix from position list len(3) and 
+Generates numpy transformation matrix from position list len(3) and
     numpy rotation matrix
 
 @param pos:     list len(3) containing position
@@ -101,18 +107,18 @@ def cammat2o3d(cam_mat, width, height):
 For visualization purposes, creates an o3d mesh at a specified pose and scales
     down axes size.
 
-@param grasp_pose:  4x4 transformation matrix
-@param scale_down:  number of times smaller axes should appear
+@param pose:         4x4 transformation matrix
+@param scale_down:   number of times smaller axes should appear
 
-@return grasp_axes:  o3d TriangleMesh with scaled axes at specified pose
+@return scaled_axes: o3d TriangleMesh with scaled axes at specified pose
 """
-def o3dTFAtPose(grasp_pose, scale_down=10):
-    grasp_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+def o3dTFAtPose(pose, scale_down=10):
+    axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
     scaling_maxtrix = np.ones((4,4))
     scaling_maxtrix[:3, :3] = scaling_maxtrix[:3, :3]/scale_down
-    scaled_grasp_pose = grasp_pose*scaling_maxtrix
-    grasp_axes.transform(scaled_grasp_pose)
-    return grasp_axes
+    scaled_pose = pose*scaling_maxtrix
+    axes.transform(scaled_pose)
+    return axes
 
 """
 Class that renders depth images in MuJoCo, processes depth images from

@@ -2,6 +2,7 @@ import numpy as np
 import time
 import copy
 import math
+import time
 
 import motor_skills
 import motor_skills.core.mj_control as mjc
@@ -159,17 +160,54 @@ class MujocoPlanExecutor(object):
 
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
         print("Generated", len(grasp_poses), "grasp poses.")
-        for grasp_pose in grasp_poses[:1]:
+        '''
+        0 - attempt failed
+        1 - attempt succeeded
+        2 - pregrasp ik failed
+        3 - grasp ik failed
+        '''
+        result_labels = []
+        result_time = []
+        c = 0
+        for grasp_pose in grasp_poses:
+            start_time = time.time()
             pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, 0.15)
-            o3d.visualization.draw_geometries([world_axes, cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
 
+            # Pregrasp and grasp orientation are the same, so just use grasp_or
             pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
+
+            self.sim.data.qpos[:self.aDOF] = start
+            self.sim.step()
+
+            pregrasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation)
+            if not planner.validityChecker.isValid(pregrasp_goal):
+                result_labels.append(2)
+            else:
+                grasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=pregrasp_goal)
+                if not planner.validityChecker.isValid(grasp_goal):
+                    result_labels.append(3)
+                else:
+                    result_labels.append(1)
+            result_time.append(time.time()-start_time)
+            c+=1
+            if c%100==0:
+                print(c)
+
+            #o3d.visualization.draw_geometries([world_axes, cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
+        label_types = list(np.unique(result_labels))
+        label_counts = [(l, result_labels.count(l)) for l in label_types]
+        print("Completed attempts for all generated grasp poses:", label_counts)
+        for label_type in label_types:
+            indices = np.where(np.array(result_labels) == label_type)[0]
+            all_times_this_label = [result_time[ind] for ind in indices]
+            print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
+
 
         while True:
             self.viewer.render()
 
-        pregrasp_goal = planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation)
+        
         print("Now planning pre-grasp motion.")
         pregrasp_path=planner.plan(start, pregrasp_goal)
         _=input('enter to start execution')

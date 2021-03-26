@@ -147,7 +147,10 @@ class PbPlanner(object):
         #ompl_base.PlannerDataStorage.store
         #ompl_base.PlannerDataStorage.load
 
-    def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat):
+    def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat, starting_state=None):
+        if starting_state != None:
+            for i in range(NDOF):
+                p.resetJointState(robotId, i, starting_state[i])
         closeEnough = False
         c_iter = 0
         dist2 = 1e30

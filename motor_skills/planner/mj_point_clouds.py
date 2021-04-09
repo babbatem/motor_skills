@@ -46,6 +46,23 @@ def mat2Quat(np_rot_mat):
     return quat_wxyz
 
 """
+Generates 4x4 transformation matrix from position and euler angles (rpy).
+
+@param pos: position list (len 3)
+@param euler: rotation angle list (len 3)
+
+@return t_mat: 4x4 transformation matrix
+"""
+def posEuler2Mat(pos, euler):
+    t_mat = np.eye(4)
+    t_mat[:3, 3] = np.array(pos)
+
+    rot = Rotation.from_euler('xyz', euler, degrees=False)
+    rot_mat = rot.as_matrix()
+    t_mat[:3, :3] = rot_mat
+    return t_mat
+
+"""
 Generates position list and quaternion list (wxyz) from numpy transformation matrix
 
 @param np_mat: 4x4 transformation matrix as numpy array

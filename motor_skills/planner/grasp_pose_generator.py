@@ -4,8 +4,6 @@ import numpy as np
 
 import open3d as o3d
 
-import motor_skills.planner.mj_point_clouds as mjpc
-
 """
 Rotates a given matrix about z-axis (approach) by specified angle
 

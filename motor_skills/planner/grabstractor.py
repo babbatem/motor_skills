@@ -97,7 +97,7 @@ class Grabstractor(object):
         pil_screenshot = Image.fromarray(np.uint8(np_screenshot*255)).convert('RGB')
         pil_screenshot.save(full_filename_with_path)
 
-    def visualizationVideoSample(self, num_grasps_to_display=10, num_values_per_range=5, filepath="/home/mcorsaro/grabstraction_results/"):
+    def visualizationVideoSample(self, num_grasps_to_display=100, num_values_per_range=5, filepath="/home/mcorsaro/grabstraction_results/"):
         if self.embedding_dim != 3:
             print("Attempted to generate video images of grasps over grabstraction space with embedding of size", self.embedding_dim)
             return
@@ -110,22 +110,34 @@ class Grabstractor(object):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)
 
-        '''
+        # we also want to create videos for mean and median, and display that they are
+        # so create list of tuples with values and special label
+        # then when projecting back, check if each value is tuple, and if it is, save special label in filename
         grabstraction_avg = self.grabstracted_inputs.mean(0)
         grabstraction_median = np.median(self.grabstracted_inputs, axis=0)
-        '''
+        x_additional_values = [('avg', grabstraction_avg[0]), ('median', grabstraction_median[0])]
+        y_additional_values = [('avg', grabstraction_avg[1]), ('median', grabstraction_median[1])]
+        z_additional_values = [('avg', grabstraction_avg[2]), ('median', grabstraction_median[2])]
 
         for dim in range(3):
             x_grasps = (num_grasps_to_display if dim == 0 else num_values_per_range)
             y_grasps = (num_grasps_to_display if dim == 1 else num_values_per_range)
             z_grasps = (num_grasps_to_display if dim == 2 else num_values_per_range)
-            for x in [x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)]:
-                for y in [y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)]:
-                    for z in [z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)]:
+            for x in [x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)] + ([] if dim==0 else x_additional_values):
+                for y in [y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)] + ([] if dim==1 else y_additional_values):
+                    for z in [z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)] + ([] if dim==2 else z_additional_values):
+                        # special labels to save in filename
+                        xl, yl, zl = '', '', ''
+                        if type(x) is tuple:
+                            xl, x = x
+                        if type(y) is tuple:
+                            yl, y = y
+                        if type(z) is tuple:
+                            zl, z = z
                         abstract_grasp_np = np.array((x, y, z))
                         np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
                         grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                        filename = str(dim) + '_' + "{:.9f}".format(x) + '_' + "{:.9f}".format(y) + '_' + "{:.9f}".format(z) + ".jpg"
+                        filename = str(dim) + '_' + xl + "{:.9f}".format(x) + '_' + yl +  "{:.9f}".format(y) + '_' + zl + "{:.9f}".format(z) + ".jpg"
                         self.saveO3DScreenshot(grasp_pose, file_dir, filename)
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):

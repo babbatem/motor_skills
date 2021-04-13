@@ -1,5 +1,11 @@
+import datetime
+import os
+import time
+
 import numpy as np
 import open3d as o3d
+
+from PIL import Image
 
 import motor_skills.planner.mj_point_clouds as mjpc
 import motor_skills.planner.grasp_pose_generator as gpg
@@ -57,72 +63,25 @@ class Grabstractor(object):
         # origin isn't end effector frame, so pull it back by distance in URDF's j2s6s300_joint_end_effector
         hand_transform = gpg.translateFrameNegativeZ(hand_transform, -0.16)
         for mesh in self.gripper_meshes:
+            # since mesh.transform transforms from the current position, set it back to the original pose
+            #   first by transforming with inverse of last transform 
             if self.gripper_transform is not None:
                 mesh.transform(np.linalg.inv(self.gripper_transform))
             mesh.transform(hand_transform)
         self.gripper_transform = hand_transform
 
-    def visualizationVideoSample(self):
-        pass
-
-    def generateGrabstraction(self, compression_alg="pca"):
-
-        self.loadGripperMesh()
-
-        # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
-        # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
-        grasp_pose_space = np.empty((len(self.grasp_poses), 7))
-        for i, grasp_pose in enumerate(self.grasp_poses):
-            grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
-            grasp_pose_space[i] = grasp_position + grasp_orientation
-        '''
-        embedding = Isomap(n_neighbors=250, n_components=3)
-        grabstractions = embedding.fit_transform(grasp_pose_space)
-        #https://stackoverflow.com/questions/29661574/normalize-numpy-array-columns-in-python
-        grabstractions_normed = (grabstractions - grabstractions.min(0)) / grabstractions.ptp(0)
-        self.cloud_with_normals.colors = o3d.utility.Vector3dVector(grabstractions_normed)'''
-
-        embedding_dim = 3
-        embedding = PCA(n_components=embedding_dim)
-        grabstractions = embedding.fit_transform(grasp_pose_space)
-
-        num_grasps_to_display = 10
-        num_values_per_range = 5
-
-        grabstraction_ranges = np.array((grabstractions.min(0), grabstractions.max(0)))
-
-        '''for dim in range(3):
-            x_grasps = (num_grasps_to_display if dim == 0 else num_values_per_range)
-            y_grasps = (num_grasps_to_display if dim == 1 else num_values_per_range)
-            z_grasps = (num_grasps_to_display if dim == 2 else num_values_per_range)
-            for x in [grabstraction_ranges[0, 0]+i*(grabstraction_ranges[1, 0]-grabstraction_ranges[0, 0])/(x_grasps-1) for i in range(x_grasps)]:
-                for y in [grabstraction_ranges[0, 1]+i*(grabstraction_ranges[1, 1]-grabstraction_ranges[0, 1])/(y_grasps-1) for i in range(y_grasps)]:
-                    for z in [grabstraction_ranges[0, 2]+i*(grabstraction_ranges[1, 2]-grabstraction_ranges[0, 2])/(z_grasps-1) for i in range(z_grasps)]:
-                        filename = str(dim) + '_' + "{:.9f}".format(x) + '_' + "{:.9f}".format(y) + '_' + "{:.9f}".format(z) + ".txt"'''
-
+    def saveO3DScreenshot(self, grasp_pose, filepath, filename, view_param_file="/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"):
+        grasp_pose_to_visualize = mjpc.o3dTFAtPose(grasp_pose)
+        self.transformGripperMesh(grasp_pose)
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        grabstractions_normed = (grabstractions - grabstractions.min(0)) / grabstractions.ptp(0)
-        self.cloud_with_normals.colors = o3d.utility.Vector3dVector(grabstractions_normed)
-        
-        min_np_grasp = embedding.inverse_transform(grabstractions.min(0))
-        min_grasp_pose = mjpc.npGraspArr2Mat(min_np_grasp)
-        grasp_pose_to_visualize = mjpc.o3dTFAtPose(min_grasp_pose)
-        self.transformGripperMesh(min_grasp_pose)
-        o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, grasp_pose_to_visualize] + self.gripper_meshes)
+        vis_list = [world_axes, self.cloud_with_normals, grasp_pose_to_visualize] + self.gripper_meshes
 
-        max_np_grasp = embedding.inverse_transform(grabstractions.max(0))
-        max_grasp_pose = mjpc.npGraspArr2Mat(max_np_grasp)
-        grasp_pose_to_visualize = mjpc.o3dTFAtPose(max_grasp_pose)
-        self.transformGripperMesh(max_grasp_pose)
-        o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, grasp_pose_to_visualize] + self.gripper_meshes)
+        full_filename_with_path = filepath + '/' + filename
 
-
-
-        '''
         vis = o3d.visualization.Visualizer()
         vis.create_window(visible=False)
         view_ctrl = vis.get_view_control()
-        view_parameters = o3d.io.read_pinhole_camera_parameters("/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json")
+        view_parameters = o3d.io.read_pinhole_camera_parameters(view_param_file)
         original_intrinsics = view_ctrl.convert_to_pinhole_camera_parameters()
         # https://github.com/intel-isl/Open3D/issues/1164
         view_parameters.intrinsic = original_intrinsics.intrinsic
@@ -133,9 +92,78 @@ class Grabstractor(object):
         vis.update_renderer()
         view_ctrl.convert_from_pinhole_camera_parameters(view_parameters)
         screenshot = vis.capture_screen_float_buffer(do_render=True)
-        #depth = vis.capture_depth_float_buffer(do_render=False)
         vis.destroy_window()
         np_screenshot = np.asarray(screenshot)
         pil_screenshot = Image.fromarray(np.uint8(np_screenshot*255)).convert('RGB')
-        pil_screenshot.save("/home/mcorsaro/Desktop/vis_test.jpg")
+        pil_screenshot.save(full_filename_with_path)
+
+    def visualizationVideoSample(self, num_grasps_to_display=10, num_values_per_range=5, filepath="/home/mcorsaro/grabstraction_results/"):
+        if self.embedding_dim != 3:
+            print("Attempted to generate video images of grasps over grabstraction space with embedding of size", self.embedding_dim)
+            return
+
+        grabstraction_ranges = np.array((self.grabstracted_inputs.min(0), self.grabstracted_inputs.max(0)))
+        x_min, x_max = grabstraction_ranges[0, 0], grabstraction_ranges[1, 0]
+        y_min, y_max = grabstraction_ranges[0, 1], grabstraction_ranges[1, 1]
+        z_min, z_max = grabstraction_ranges[0, 2], grabstraction_ranges[1, 2]
+
+        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        os.mkdir(file_dir)
+
+        '''
+        grabstraction_avg = self.grabstracted_inputs.mean(0)
+        grabstraction_median = np.median(self.grabstracted_inputs, axis=0)
+        '''
+
+        for dim in range(3):
+            x_grasps = (num_grasps_to_display if dim == 0 else num_values_per_range)
+            y_grasps = (num_grasps_to_display if dim == 1 else num_values_per_range)
+            z_grasps = (num_grasps_to_display if dim == 2 else num_values_per_range)
+            for x in [x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)]:
+                for y in [y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)]:
+                    for z in [z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)]:
+                        abstract_grasp_np = np.array((x, y, z))
+                        np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
+                        grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
+                        filename = str(dim) + '_' + "{:.9f}".format(x) + '_' + "{:.9f}".format(y) + '_' + "{:.9f}".format(z) + ".jpg"
+                        self.saveO3DScreenshot(grasp_pose, file_dir, filename)
+
+    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
+
+        self.loadGripperMesh()
+        self.embedding_dim=embedding_dim
+
+        # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
+        self.grasp_pose_space = np.empty((len(self.grasp_poses), 7))
+        for i, grasp_pose in enumerate(self.grasp_poses):
+            grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
+            self.grasp_pose_space[i] = grasp_position + grasp_orientation
+        
+        if compression_alg=="isomap":
+            # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
+            self.embedding = Isomap(n_neighbors=250, n_components=self.embedding_dim)
+            self.grabstracted_inputs = self.embedding.fit_transform(grasp_pose_space)
+
+        elif compression_alg=="pca":
+            self.embedding = PCA(n_components=self.embedding_dim)
+            self.grabstracted_inputs = self.embedding.fit_transform(self.grasp_pose_space)
+
+        if embedding_dim==3:
+            #https://stackoverflow.com/questions/29661574/normalize-numpy-array-columns-in-python
+            grabstracted_inputs_normed = (self.grabstracted_inputs - self.grabstracted_inputs.min(0)) / self.grabstracted_inputs.ptp(0)
+            self.cloud_with_normals.colors = o3d.utility.Vector3dVector(grabstracted_inputs_normed)
+
+        '''
+        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        min_np_grasp = self.embedding.inverse_transform(self.grabstracted_inputs.min(0))
+        min_grasp_pose = mjpc.npGraspArr2Mat(min_np_grasp)
+        grasp_pose_to_visualize = mjpc.o3dTFAtPose(min_grasp_pose)
+        self.transformGripperMesh(min_grasp_pose)
+        o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, grasp_pose_to_visualize] + self.gripper_meshes)
+
+        max_np_grasp = self.embedding.inverse_transform(self.grabstracted_inputs.max(0))
+        max_grasp_pose = mjpc.npGraspArr2Mat(max_np_grasp)
+        grasp_pose_to_visualize = mjpc.o3dTFAtPose(max_grasp_pose)
+        self.transformGripperMesh(max_grasp_pose)
+        o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, grasp_pose_to_visualize] + self.gripper_meshes)
         '''

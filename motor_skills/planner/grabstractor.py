@@ -123,21 +123,29 @@ class Grabstractor(object):
             x_grasps = (num_grasps_to_display if dim == 0 else num_values_per_range)
             y_grasps = (num_grasps_to_display if dim == 1 else num_values_per_range)
             z_grasps = (num_grasps_to_display if dim == 2 else num_values_per_range)
-            for x in [x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)] + ([] if dim==0 else x_additional_values):
-                for y in [y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)] + ([] if dim==1 else y_additional_values):
-                    for z in [z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)] + ([] if dim==2 else z_additional_values):
+            for x in ([x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)] + ([] if dim==0 else x_additional_values)):
+                for y in ([y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)] + ([] if dim==1 else y_additional_values)):
+                    for z in ([z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)] + ([] if dim==2 else z_additional_values)):
                         # special labels to save in filename
                         xl, yl, zl = '', '', ''
+                        x_to_use, y_to_use, z_to_use = None, None, None
                         if type(x) is tuple:
-                            xl, x = x
+                            xl, x_to_use = x
+                        else:
+                            x_to_use = x
                         if type(y) is tuple:
-                            yl, y = y
+                            yl, y_to_use = y
+                        else:
+                            y_to_use = y
                         if type(z) is tuple:
-                            zl, z = z
-                        abstract_grasp_np = np.array((x, y, z))
+                            zl, z_to_use = z
+                        else:
+                            z_to_use = z
+                        abstract_grasp_np = np.array((x_to_use, y_to_use, z_to_use))
                         np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
                         grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                        filename = str(dim) + '_' + xl + "{:.9f}".format(x) + '_' + yl +  "{:.9f}".format(y) + '_' + zl + "{:.9f}".format(z) + ".jpg"
+                        xnl, ynl, znl = "{:.9f}".format(x_to_use), "{:.9f}".format(y_to_use), "{:.9f}".format(z_to_use)
+                        filename = str(dim) + '_' + xl + xnl + '_' + yl + ynl + '_' + zl + znl + ".jpg"
                         self.saveO3DScreenshot(grasp_pose, file_dir, filename)
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):

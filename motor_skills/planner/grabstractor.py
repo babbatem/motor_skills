@@ -5,7 +5,7 @@ import time
 import numpy as np
 import open3d as o3d
 
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw
 
 import motor_skills.planner.mj_point_clouds as mjpc
 import motor_skills.planner.grasp_pose_generator as gpg
@@ -17,6 +17,7 @@ class Grabstractor(object):
     def __init__(self, cloud_with_normals, grasp_poses):
         self.cloud_with_normals = cloud_with_normals
         self.grasp_poses = grasp_poses
+        self.vis_font = font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 33)
 
     def loadGripperMesh(self):
         gripper_model_path = '/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/hand_3finger.STL'
@@ -70,7 +71,7 @@ class Grabstractor(object):
             mesh.transform(hand_transform)
         self.gripper_transform = hand_transform
 
-    def saveO3DScreenshot(self, grasp_pose, filepath, filename, view_param_file="/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"):
+    def saveO3DScreenshot(self, grasp_pose, labeled_grabstraction, filepath, filename, view_param_file="/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"):
         grasp_pose_to_visualize = mjpc.o3dTFAtPose(grasp_pose)
         self.transformGripperMesh(grasp_pose)
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
@@ -95,6 +96,11 @@ class Grabstractor(object):
         vis.destroy_window()
         np_screenshot = np.asarray(screenshot)
         pil_screenshot = Image.fromarray(np.uint8(np_screenshot*255)).convert('RGB')
+        draw = ImageDraw.Draw(pil_screenshot)
+        pos, quat = mjpc.mat2PosQuat(grasp_pose)
+        text_to_draw = "pos:\n    {:.4f}\n    {:.4f}\n    {:.4f}\nquat:\n    {:.4f}\n    {:.4f}\n    {:.4f}\n    {:.4f}\nGrabstraction:\n".format(pos[0], pos[1], pos[2], quat[1], quat[1], quat[2], quat[3]) + \
+            ''.join(["    {:.4f} ".format(v[1]) + v[0] + "\n" for v in labeled_grabstraction])
+        draw.text((0,0), text_to_draw, (0,0,0), font=self.vis_font)
         pil_screenshot.save(full_filename_with_path)
 
     def visualizationVideoSample(self, num_grasps_to_display=100, num_values_per_range=5, filepath="/home/mcorsaro/grabstraction_results/"):
@@ -146,7 +152,7 @@ class Grabstractor(object):
                         grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
                         xnl, ynl, znl = "{:.9f}".format(x_to_use), "{:.9f}".format(y_to_use), "{:.9f}".format(z_to_use)
                         filename = str(dim) + '_' + xl + xnl + '_' + yl + ynl + '_' + zl + znl + ".jpg"
-                        self.saveO3DScreenshot(grasp_pose, file_dir, filename)
+                        self.saveO3DScreenshot(grasp_pose, [(xl, x_to_use), (yl, y_to_use), (zl, z_to_use)], file_dir, filename)
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
 

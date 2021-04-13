@@ -103,6 +103,20 @@ def posRotMat2Mat(pos, rot_mat):
     return t_mat
 
 """
+Generates transformation matrix from numpy array len(7) of position list and
+    quaternion
+
+@param np_grasp:  numpy array len(7) with position followed by w-x-y-z quat
+
+@return t_mat:  4x4 transformation matrix as numpy array
+"""
+def npGraspArr2Mat(np_grasp):
+    grasp_position = np_grasp[:3].tolist()
+    grasp_orientation = (np_grasp[3:]/np.linalg.norm(np_grasp[3:])).tolist()
+    t_mat = posRotMat2Mat(grasp_position, quat2Mat(grasp_orientation))
+    return t_mat
+
+"""
 Generates Open3D camera intrinsic matrix object from numpy camera intrinsic
     matrix and image width and height
 

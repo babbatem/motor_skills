@@ -12,13 +12,12 @@ from motor_skills.planner.pbplanner import PbPlanner
 
 import motor_skills.planner.mj_point_clouds as mjpc
 import motor_skills.planner.grasp_pose_generator as gpg
+import motor_skills.planner.grabstractor as grb
 
 from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer
 
 import open3d as o3d
-
-from sklearn.manifold import Isomap
 
 class MujocoPlanExecutor(object):
     def __init__(self, load_door=True):
@@ -163,100 +162,6 @@ class MujocoPlanExecutor(object):
 
         print("Generated", len(self.grasp_poses), "grasp poses.")
 
-    def loadGripperMesh(self):
-        gripper_model_path = '/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/hand_3finger.STL'
-        finger_proximal_model_path = '/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/finger_proximal.STL'
-        finger_distal_model_path = '/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/finger_distal.STL'
-        gripper_mesh = o3d.io.read_triangle_mesh(gripper_model_path)
-        finger_1_proximal_mesh = o3d.io.read_triangle_mesh(finger_proximal_model_path)
-        finger_1_distal_mesh = o3d.io.read_triangle_mesh(finger_distal_model_path)
-        finger_2_proximal_mesh = o3d.io.read_triangle_mesh(finger_proximal_model_path)
-        finger_2_distal_mesh = o3d.io.read_triangle_mesh(finger_distal_model_path)
-        finger_3_proximal_mesh = o3d.io.read_triangle_mesh(finger_proximal_model_path)
-        finger_3_distal_mesh = o3d.io.read_triangle_mesh(finger_distal_model_path)
-
-        proximal_color = [0, 0, 0]
-        distal_color = [0.5, 0.5, 0.5]
-        finger_1_proximal_mesh.paint_uniform_color(proximal_color)
-        finger_1_distal_mesh.paint_uniform_color(distal_color)
-        finger_2_proximal_mesh.paint_uniform_color(proximal_color)
-        finger_2_distal_mesh.paint_uniform_color(distal_color)
-        finger_3_proximal_mesh.paint_uniform_color(proximal_color)
-        finger_3_distal_mesh.paint_uniform_color(distal_color)
-
-        # Transforms pulled from URDF
-        proximal2distal = mjpc.posEuler2Mat([0.044, -0.003, 0], [0, 0, 0])
-        hand2proximal1 = mjpc.posEuler2Mat([0.00279, 0.03126, -0.11467], [-1.570796327, .649262481663582, 1.35961148639407])
-        hand2proximal2 = mjpc.posEuler2Mat([0.02226, -0.02707, -0.11482], [-1.570796327, .649262481663582, -1.38614049188413])
-        hand2proximal3 = mjpc.posEuler2Mat([-0.02226, -0.02707, -0.11482], [-1.570796327, .649262481663582, -1.75545216211587])
-
-        finger_1_proximal_mesh.transform(hand2proximal1)
-        finger_1_distal_mesh.transform(np.matmul(hand2proximal1, proximal2distal))
-        finger_2_proximal_mesh.transform(hand2proximal2)
-        finger_2_distal_mesh.transform(np.matmul(hand2proximal2, proximal2distal))
-        finger_3_proximal_mesh.transform(hand2proximal3)
-        finger_3_distal_mesh.transform(np.matmul(hand2proximal3, proximal2distal))
-
-        self.gripper_meshes = [gripper_mesh, finger_1_proximal_mesh, finger_1_distal_mesh, finger_2_proximal_mesh, finger_2_distal_mesh, finger_3_proximal_mesh, finger_3_distal_mesh]
-
-    def transformGripperMesh(self, t_mat):
-        rotation_about_x = np.eye(4)
-        rotation_about_x[:3, :3] = mjpc.quat2Mat([0, 1, 0, 0])
-        # by default, hand points into negative z; flip about x by pi
-        hand_transform = np.matmul(t_mat, rotation_about_x)
-        # origin isn't end effector frame, so pull it back by distance in URDF's j2s6s300_joint_end_effector
-        hand_transform = gpg.translateFrameNegativeZ(hand_transform, -0.16)
-        for mesh in self.gripper_meshes:
-            mesh.transform(hand_transform)
-
-    def generateIsomap(self):
-
-        self.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
-        self.loadGripperMesh()
-
-        '''
-        # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
-        grasp_pose_space = np.empty((len(self.grasp_poses), 7))
-        for i, grasp_pose in enumerate(self.grasp_poses):
-            grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
-            grasp_pose_space[i] = grasp_position + grasp_orientation
-        print(np.asarray(self.cloud_with_normals.colors).shape)
-        embedding = Isomap(n_neighbors=250, n_components=3)
-        grabstractions = embedding.fit_transform(grasp_pose_space)
-        #https://stackoverflow.com/questions/29661574/normalize-numpy-array-columns-in-python
-        grabstractions_normed = (grabstractions - grabstractions.min(0)) / grabstractions.ptp(0)
-        self.cloud_with_normals.colors = o3d.utility.Vector3dVector(grabstractions_normed)'''
-
-        self.transformGripperMesh(self.grasp_poses[0])
-
-        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        #gripper_mesh.transform(self.grasp_poses[0])
-
-        vis_list = [world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(self.grasp_poses[0])] + self.gripper_meshes
-
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(visible=False)
-        view_ctrl = vis.get_view_control()
-        view_parameters = o3d.io.read_pinhole_camera_parameters("/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json")
-        original_intrinsics = view_ctrl.convert_to_pinhole_camera_parameters()
-        # https://github.com/intel-isl/Open3D/issues/1164
-        view_parameters.intrinsic = original_intrinsics.intrinsic
-        for mesh in vis_list:
-            vis.add_geometry(mesh)
-            vis.update_geometry(mesh)
-        vis.poll_events()
-        vis.update_renderer()
-        view_ctrl.convert_from_pinhole_camera_parameters(view_parameters)
-        screenshot = vis.capture_screen_float_buffer(do_render=True)
-        #depth = vis.capture_depth_float_buffer(do_render=False)
-        vis.destroy_window()
-        np_screenshot = np.asarray(screenshot)
-        pil_screenshot = Image.fromarray(np.uint8(np_screenshot*255)).convert('RGB')
-        pil_screenshot.save("/home/mcorsaro/Desktop/vis_test.jpg")
-
-
-        #o3d.visualization.draw_geometries(vis_list)
-
     def generateData(self):
 
         self.setUpSimAndGenCloudsAndGenCandidates()
@@ -321,11 +226,9 @@ class MujocoPlanExecutor(object):
             all_times_this_label = [result_time[ind] for ind in indices]
             print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
 
-
         while True:
             self.viewer.render()
 
-        
         print("Now planning pre-grasp motion.")
         pregrasp_path=self.planner.plan(start, pregrasp_goal)
         _=input('enter to start execution')
@@ -355,4 +258,7 @@ class MujocoPlanExecutor(object):
 if __name__ == '__main__':
     mjp = MujocoPlanExecutor()
     #mjp.generateData()
-    mjp.generateIsomap()
+    mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
+    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses)
+    fam_gen.generateGrabstraction(compression_alg="pca")
+    fam_gen.visualizationVideoSample()

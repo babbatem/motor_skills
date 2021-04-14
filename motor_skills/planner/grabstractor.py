@@ -2,6 +2,8 @@ import datetime
 import os
 import time
 
+import itertools
+
 import numpy as np
 import open3d as o3d
 
@@ -99,62 +101,33 @@ class Grabstractor(object):
         draw = ImageDraw.Draw(pil_screenshot)
         pos, quat = mjpc.mat2PosQuat(grasp_pose)
         text_to_draw = "pos:\n    {:.4f}\n    {:.4f}\n    {:.4f}\nquat:\n    {:.4f}\n    {:.4f}\n    {:.4f}\n    {:.4f}\nGrabstraction:\n".format(pos[0], pos[1], pos[2], quat[0], quat[1], quat[2], quat[3]) + \
-            ''.join(["    {:.4f} ".format(v[1]) + v[0] + "\n" for v in labeled_grabstraction])
+            ''.join(["    {:.4f}\n".format(v) for v in labeled_grabstraction])
         draw.text((0,0), text_to_draw, (0,0,0), font=self.vis_font)
         pil_screenshot.save(full_filename_with_path)
 
-    def visualizationVideoSample(self, num_grasps_to_display=100, num_values_per_range=5, filepath="/home/mcorsaro/grabstraction_results/"):
-        if self.embedding_dim != 3:
-            print("Attempted to generate video images of grasps over grabstraction space with embedding of size", self.embedding_dim)
-            return
+    def visualizationVideoSample(self, num_grasps_to_display=50, num_values_per_range=4, filepath="/home/mcorsaro/grabstraction_results/"):
 
         grabstraction_ranges = np.array((self.grabstracted_inputs.min(0), self.grabstracted_inputs.max(0)))
-        x_min, x_max = grabstraction_ranges[0, 0], grabstraction_ranges[1, 0]
-        y_min, y_max = grabstraction_ranges[0, 1], grabstraction_ranges[1, 1]
-        z_min, z_max = grabstraction_ranges[0, 2], grabstraction_ranges[1, 2]
 
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)
 
-        # we also want to create videos for mean and median, and display that they are
-        # so create list of tuples with values and special label
-        # then when projecting back, check if each value is tuple, and if it is, save special label in filename
-        grabstraction_avg = self.grabstracted_inputs.mean(0)
-        grabstraction_median = np.median(self.grabstracted_inputs, axis=0)
-        x_additional_values = [('avg', grabstraction_avg[0]), ('median', grabstraction_median[0])]
-        y_additional_values = [('avg', grabstraction_avg[1]), ('median', grabstraction_median[1])]
-        z_additional_values = [('avg', grabstraction_avg[2]), ('median', grabstraction_median[2])]
+        for dim_to_vary in range(self.embedding_dim):
+            vals_to_vary = [grabstraction_ranges[0, dim_to_vary]+i*(grabstraction_ranges[1, dim_to_vary]-grabstraction_ranges[0, dim_to_vary])/(num_grasps_to_display-1) for i in range(num_grasps_to_display)]
+            vals_in_other_dims = []
+            for other_dim in range(self.embedding_dim):
+                if other_dim != dim_to_vary:
+                    vals_in_other_dims.append([grabstraction_ranges[0, other_dim]+i*(grabstraction_ranges[1, other_dim]-grabstraction_ranges[0, other_dim])/(num_values_per_range-1) for i in range(num_values_per_range)])
+            combinations_of_other_dim_vals = list(itertools.product(*vals_in_other_dims))
+            for other_dim_val_combination in combinations_of_other_dim_vals:
+                for varied_val in vals_to_vary:
+                    abstract_grasp_np = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
+                    np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
+                    grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
+                    filename = str(dim_to_vary) + ''.join(["_{:.4f}".format(v) for v in abstract_grasp_np]) + ".jpg"
+                    self.saveO3DScreenshot(grasp_pose, abstract_grasp_np, file_dir, filename)
 
-        for dim in range(3):
-            x_grasps = (num_grasps_to_display if dim == 0 else num_values_per_range)
-            y_grasps = (num_grasps_to_display if dim == 1 else num_values_per_range)
-            z_grasps = (num_grasps_to_display if dim == 2 else num_values_per_range)
-            for x in ([x_min+i*(x_max-x_min)/(x_grasps-1) for i in range(x_grasps)] + ([] if dim==0 else x_additional_values)):
-                for y in ([y_min+i*(y_max-y_min)/(y_grasps-1) for i in range(y_grasps)] + ([] if dim==1 else y_additional_values)):
-                    for z in ([z_min+i*(z_max-z_min)/(z_grasps-1) for i in range(z_grasps)] + ([] if dim==2 else z_additional_values)):
-                        # special labels to save in filename
-                        xl, yl, zl = '', '', ''
-                        x_to_use, y_to_use, z_to_use = None, None, None
-                        if type(x) is tuple:
-                            xl, x_to_use = x
-                        else:
-                            x_to_use = x
-                        if type(y) is tuple:
-                            yl, y_to_use = y
-                        else:
-                            y_to_use = y
-                        if type(z) is tuple:
-                            zl, z_to_use = z
-                        else:
-                            z_to_use = z
-                        abstract_grasp_np = np.array((x_to_use, y_to_use, z_to_use))
-                        np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
-                        grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                        xnl, ynl, znl = "{:.9f}".format(x_to_use), "{:.9f}".format(y_to_use), "{:.9f}".format(z_to_use)
-                        filename = str(dim) + '_' + xl + xnl + '_' + yl + ynl + '_' + zl + znl + ".jpg"
-                        self.saveO3DScreenshot(grasp_pose, [(xl, x_to_use), (yl, y_to_use), (zl, z_to_use)], file_dir, filename)
-
-    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
+    def generateGrabstraction(self, compression_alg="pca", embedding_dim=2):
 
         self.loadGripperMesh()
         self.embedding_dim=embedding_dim

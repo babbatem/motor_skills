@@ -124,7 +124,7 @@ class Grabstractor(object):
                     abstract_grasp_np = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
                     np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
                     grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                    filename = str(dim_to_vary) + ''.join(["_{:.4f}".format(v) for v in abstract_grasp_np]) + ".jpg"
+                    filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in abstract_grasp_np]) + ".jpg"
                     self.saveO3DScreenshot(grasp_pose, abstract_grasp_np, file_dir, filename)
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=2):

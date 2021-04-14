@@ -98,7 +98,7 @@ class Grabstractor(object):
         pil_screenshot = Image.fromarray(np.uint8(np_screenshot*255)).convert('RGB')
         draw = ImageDraw.Draw(pil_screenshot)
         pos, quat = mjpc.mat2PosQuat(grasp_pose)
-        text_to_draw = "pos:\n    {:.4f}\n    {:.4f}\n    {:.4f}\nquat:\n    {:.4f}\n    {:.4f}\n    {:.4f}\n    {:.4f}\nGrabstraction:\n".format(pos[0], pos[1], pos[2], quat[1], quat[1], quat[2], quat[3]) + \
+        text_to_draw = "pos:\n    {:.4f}\n    {:.4f}\n    {:.4f}\nquat:\n    {:.4f}\n    {:.4f}\n    {:.4f}\n    {:.4f}\nGrabstraction:\n".format(pos[0], pos[1], pos[2], quat[0], quat[1], quat[2], quat[3]) + \
             ''.join(["    {:.4f} ".format(v[1]) + v[0] + "\n" for v in labeled_grabstraction])
         draw.text((0,0), text_to_draw, (0,0,0), font=self.vis_font)
         pil_screenshot.save(full_filename_with_path)

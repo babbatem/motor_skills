@@ -21,10 +21,17 @@ from sklearn.manifold import Isomap
 from sklearn.decomposition import PCA
 
 class Grabstractor(object):
-    def __init__(self, cloud_with_normals, grasp_poses):
-        self.cloud_with_normals = cloud_with_normals
-        self.grasp_poses = grasp_poses
+    def __init__(self, cloud_with_normals, grasp_poses, obj="door_handle", use_obj_frame=True):
+        self.cloud_with_normals = copy.deepcopy(cloud_with_normals)
+        self.grasp_poses = copy.deepcopy(grasp_poses)
         self.vis_font = font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 33)
+        self.obj = obj
+        if self.obj == "door_handle":
+            self.obj_frame = mjpc.posRotMat2Mat([0.185, 0.348, 0.415], mjpc.quat2Mat([0.7071, 0, 0.7071, 0]))
+            self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"
+        if use_obj_frame:
+            self.cloud_with_normals.transform(np.linalg.inv(self.obj_frame))
+            self.grasp_poses = [np.matmul(np.linalg.inv(self.obj_frame), grasp_pose) for grasp_pose in self.grasp_poses]
 
     def loadGripperMesh(self):
         gripper_model_path = '/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/hand_3finger.STL'
@@ -78,9 +85,8 @@ class Grabstractor(object):
             mesh.transform(hand_transform)
         self.gripper_transform = hand_transform
 
-    def saveO3DScreenshot(self, filepath, filename, point_cloud, grasp_pose=None, labeled_grabstraction=None, view_param_file="/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"):
-        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        vis_list = [world_axes, point_cloud]
+    def saveO3DScreenshot(self, filepath, filename, point_cloud, grasp_pose=None, labeled_grabstraction=None):
+        vis_list = [point_cloud]
         if grasp_pose is not None:
             grasp_pose_to_visualize = mjpc.o3dTFAtPose(grasp_pose)
             self.transformGripperMesh(grasp_pose)
@@ -92,7 +98,7 @@ class Grabstractor(object):
         vis = o3d.visualization.Visualizer()
         vis.create_window(visible=False)
         view_ctrl = vis.get_view_control()
-        view_parameters = o3d.io.read_pinhole_camera_parameters(view_param_file)
+        view_parameters = o3d.io.read_pinhole_camera_parameters(self.visualization_view_param_file)
         original_intrinsics = view_ctrl.convert_to_pinhole_camera_parameters()
         # https://github.com/intel-isl/Open3D/issues/1164
         view_parameters.intrinsic = original_intrinsics.intrinsic
@@ -137,11 +143,7 @@ class Grabstractor(object):
                     self.saveO3DScreenshot(file_dir, filename, self.cloud_with_normals, grasp_pose, abstract_grasp_np)
 
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
-        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        obj_frame = mjpc.posRotMat2Mat([0.185, 0.348, 0.415], mjpc.quat2Mat([0.7071, 0, 0.7071, 0]))
-        cloud_in_obj_frame = copy.deepcopy(self.cloud_with_normals)
-        cloud_in_obj_frame.transform(np.linalg.inv(obj_frame))
-        cloud_points = np.asarray(cloud_in_obj_frame.points)
+        cloud_points = np.asarray(self.cloud_with_normals.points)
         cloud_color = np.empty((cloud_points.shape))
         min_z, max_z = cloud_points.min(0)[2], cloud_points.max(0)[2]
         cloud_angle = np.arctan2(cloud_points[:,1], cloud_points[:,0])
@@ -150,18 +152,18 @@ class Grabstractor(object):
         for point_i in range(cloud_points.shape[0]):
             z = cloud_points[point_i, 2]
             a = cloud_angle[point_i]
-            z_rel = (z-min_z)/(max_z-min_z)
+            # multiply by 0.8 to avoid end of spectrum where purple turns to pink
+            z_rel = (z-min_z)/(max_z-min_z)*0.8
             a_rel = (a-min_a)/(max_a-min_a)
             cloud_color[point_i] = hls_to_rgb(z_rel, a_rel, 0.5)
-        cloud_in_obj_frame.colors = o3d.utility.Vector3dVector(cloud_color)
-        cloud_in_obj_frame.transform(obj_frame)
-        obj_axes = mjpc.o3dTFAtPose(obj_frame)
+        self.cloud_with_normals.colors = o3d.utility.Vector3dVector(cloud_color)
+        obj_axes = mjpc.o3dTFAtPose(self.obj_frame)
 
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)
 
         cloud_filename = 'cloud_screenshot.jpg'
-        self.saveO3DScreenshot(file_dir, cloud_filename, cloud_in_obj_frame)
+        self.saveO3DScreenshot(file_dir, cloud_filename, self.cloud_with_normals)
         grabstraction_filename = 'grabstraction.jpg'
 
         if self.grabstracted_inputs.shape[1] == 2:
@@ -179,20 +181,26 @@ class Grabstractor(object):
         self.embedding_dim=embedding_dim
 
         # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
-        self.grasp_pose_space = np.empty((len(self.grasp_poses), 7))
+        grasp_pose_space = np.empty((len(self.grasp_poses), 7))
+        normals = np.asarray(self.cloud_with_normals.normals)
+        point_normal_space = np.empty((len(self.grasp_poses), 6))
         for i, grasp_pose in enumerate(self.grasp_poses):
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
-            self.grasp_pose_space[i] = grasp_position + grasp_orientation
-        #self.grasp_pose_space = self.grasp_pose_space[:, :3]
+            normal = (normals[i]).tolist()
+            point_normal_space[i] = grasp_position + normal
+            grasp_pose_space[i] = grasp_position + grasp_orientation
+        #self.original_space = self.original_space[:, :3]
+
+        self.original_space = point_normal_space#grasp_pose_space
 
         if compression_alg=="isomap":
             # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
             self.embedding = Isomap(n_neighbors=250, n_components=self.embedding_dim)
-            self.grabstracted_inputs = self.embedding.fit_transform(self.grasp_pose_space)
+            self.grabstracted_inputs = self.embedding.fit_transform(self.original_space)
 
         elif compression_alg=="pca":
             self.embedding = PCA(n_components=self.embedding_dim)
-            self.grabstracted_inputs = self.embedding.fit_transform(self.grasp_pose_space)
+            self.grabstracted_inputs = self.embedding.fit_transform(self.original_space)
 
         if embedding_dim==3:
             #https://stackoverflow.com/questions/29661574/normalize-numpy-array-columns-in-python

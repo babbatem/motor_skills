@@ -29,6 +29,8 @@ class Grabstractor(object):
         if self.obj == "door_handle":
             self.obj_frame = mjpc.posRotMat2Mat([0.185, 0.348, 0.415], mjpc.quat2Mat([0.7071, 0, 0.7071, 0]))
             self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"
+            if use_obj_frame:
+                self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose_obj_frame.json"
         if use_obj_frame:
             self.cloud_with_normals.transform(np.linalg.inv(self.obj_frame))
             self.grasp_poses = [np.matmul(np.linalg.inv(self.obj_frame), grasp_pose) for grasp_pose in self.grasp_poses]

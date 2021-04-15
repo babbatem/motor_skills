@@ -162,13 +162,18 @@ class Grabstractor(object):
 
         cloud_filename = 'cloud_screenshot.jpg'
         self.saveO3DScreenshot(file_dir, cloud_filename, cloud_in_obj_frame)
+        grabstraction_filename = 'grabstraction.jpg'
 
         if self.grabstracted_inputs.shape[1] == 2:
-            grabstraction_filename = 'grabstraction.jpg'
             plt.scatter(self.grabstracted_inputs[:, 0], self.grabstracted_inputs[:, 1], c=cloud_color[range(cloud_color.shape[0])])
             plt.savefig(file_dir + '/' + grabstraction_filename)
+        elif self.grabstracted_inputs.shape[1] == 3:
+            fig = plt.figure()
+            ax = fig.add_subplot(projection='3d')
+            ax.scatter(self.grabstracted_inputs[:, 0], self.grabstracted_inputs[:, 1], self.grabstracted_inputs[:, 2], c=cloud_color[range(cloud_color.shape[0])])
+            plt.savefig(file_dir + '/' + grabstraction_filename)
 
-    def generateGrabstraction(self, compression_alg="pca", embedding_dim=2):
+    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
 
         self.loadGripperMesh()
         self.embedding_dim=embedding_dim
@@ -178,6 +183,7 @@ class Grabstractor(object):
         for i, grasp_pose in enumerate(self.grasp_poses):
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
             self.grasp_pose_space[i] = grasp_position + grasp_orientation
+        #self.grasp_pose_space = self.grasp_pose_space[:, :3]
 
         if compression_alg=="isomap":
             # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15

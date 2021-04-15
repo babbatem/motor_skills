@@ -116,7 +116,7 @@ class PbPlanner(object):
         self.ik_max_iter = 10000
 
         # setup pybullet
-        # p.connect(p.GUI)
+        #p.connect(p.GUI)
         p.connect(p.DIRECT)
         pbsetup(load_door)
 
@@ -142,7 +142,7 @@ class PbPlanner(object):
         self.si.setup()
 
         self.runTime = 5.0
-        self.plannerType = 'LazyPRMstar'
+        self.plannerType = 'RRTstar'#'LazyPRMstar'
 
         #ompl_base.PlannerDataStorage.store
         #ompl_base.PlannerDataStorage.load

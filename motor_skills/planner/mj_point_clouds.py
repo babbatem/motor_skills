@@ -220,6 +220,7 @@ class PointCloudGenerator(object):
             b2w_r = quat2Mat([0, 1, 0, 0])
             c2w_r = np.matmul(c2b_r, b2w_r)
             c2w = posRotMat2Mat(cam_pos, c2w_r)
+            # TODO(mcorsaro): I think this modifies the original cloud.. is that ok?
             transformed_cloud = o3d_cloud.transform(c2w)
 
             # If both minimum and maximum bounds are provided, crop cloud to fit

@@ -101,14 +101,12 @@ def main():
                 image_filename += EXTENSION
 
                 latest_image = imageio.imread(img_path + '/' + image_filename)
-                # 2 fps, so we show each image for 0.5 seconds
                 video.append_data(latest_image)
                 # draw image_filelist
             # wait an extra second
             video.append_data(latest_image)
             video.append_data(latest_image)
         video.close()
-                
 
 if __name__ == '__main__':
     main()

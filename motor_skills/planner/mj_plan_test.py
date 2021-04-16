@@ -20,15 +20,18 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 import open3d as o3d
 
 class MujocoPlanExecutor(object):
-    def __init__(self, load_door=True):
+    def __init__(self, obj):
         super(MujocoPlanExecutor, self).__init__()
-
-        self.load_door = load_door
+        self.obj = obj
 
         motor_skills_dir = "/home/mcorsaro/.mujoco/motor_skills/"
-
-        model = load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml') if load_door else \
-                load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
+        model_file = None
+        if self.obj == 'door':
+            model_file = 'motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml'
+        elif self.obj == 'cylinder':
+            model_file = 'motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_cylinder.xml'
+        model = load_model_from_path(motor_skills_dir + '/' + model_file)
+                #load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
         self.sim = MjSim(model)
         self.viewer = MjViewer(self.sim)
 
@@ -59,9 +62,15 @@ class MujocoPlanExecutor(object):
 
         door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
         handle_bounds = [(0.189, -2., 0.05), (2., 0.4, 2.)]
-        self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=handle_bounds[0], max_bound=handle_bounds[1])
+        cylinder_bounds = [(-1, 0.1, 0.01), (1., 1., 1.)]
+        crop_bounds = None
+        if self.obj == 'door':
+            crop_bounds = handle_bounds
+        elif self.obj == 'cylinder':
+            crop_bounds = cylinder_bounds
+        self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=crop_bounds[0], max_bound=crop_bounds[1])
 
-        self.door_dofs = [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
+        self.door_dofs = None if self.obj != 'door' else [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
 
     def executePlan(self, plan):
@@ -145,7 +154,7 @@ class MujocoPlanExecutor(object):
             self.sim.data.qpos[mj_id]=0.0
 
     def setUpSimAndGenCloudsAndGenCandidates(self, rotation_values_about_approach=[0, math.pi/2]):
-        self.planner = PbPlanner(self.load_door)
+        self.planner = PbPlanner(self.obj)
         #start = planner.validityChecker.sample_state()
         self.start_joints = [0, np.pi, np.pi, 0, np.pi, 0]
         self.sim.data.qpos[:self.aDOF] = self.start_joints
@@ -256,10 +265,11 @@ class MujocoPlanExecutor(object):
             self.viewer.render()
 
 if __name__ == '__main__':
-    mjp = MujocoPlanExecutor()
+    obj = 'cylinder'
+    mjp = MujocoPlanExecutor(obj=obj)
     #mjp.generateData()
     mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
-    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses)
+    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
     fam_gen.generateGrabstraction(compression_alg="isomap", embedding_dim=3)
     #fam_gen.visualizationVideoSample()
     fam_gen.visualizationProjectManifold()

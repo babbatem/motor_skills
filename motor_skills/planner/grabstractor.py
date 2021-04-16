@@ -21,17 +21,19 @@ from sklearn.manifold import Isomap
 from sklearn.decomposition import PCA
 
 class Grabstractor(object):
-    def __init__(self, cloud_with_normals, grasp_poses, obj="door_handle", use_obj_frame=True):
+    def __init__(self, cloud_with_normals, grasp_poses, obj="door", use_obj_frame=True):
         self.cloud_with_normals = copy.deepcopy(cloud_with_normals)
         self.grasp_poses = copy.deepcopy(grasp_poses)
         self.vis_font = font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 33)
         self.obj = obj
-        if self.obj == "door_handle":
+        if self.obj == "door":
             self.obj_frame = mjpc.posRotMat2Mat([0.185, 0.348, 0.415], mjpc.quat2Mat([0.7071, 0, 0.7071, 0]))
             self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"
-            if use_obj_frame:
-                self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose_obj_frame.json"
+        elif self.obj == "cylinder":
+            self.obj_frame = mjpc.posRotMat2Mat([0, 0.5, 0], mjpc.quat2Mat([1, 0, 0, 0]))
+            self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/CylinderOpen3DCamPose.json"
         if use_obj_frame:
+            self.visualization_view_param_file = self.visualization_view_param_file[:-5] + '_obj_frame.json'
             self.cloud_with_normals.transform(np.linalg.inv(self.obj_frame))
             self.grasp_poses = [np.matmul(np.linalg.inv(self.obj_frame), grasp_pose) for grasp_pose in self.grasp_poses]
 
@@ -159,7 +161,7 @@ class Grabstractor(object):
             a_rel = (a-min_a)/(max_a-min_a)
             cloud_color[point_i] = hls_to_rgb(z_rel, a_rel, 0.5)
         self.cloud_with_normals.colors = o3d.utility.Vector3dVector(cloud_color)
-        obj_axes = mjpc.o3dTFAtPose(self.obj_frame)
+        #obj_axes = mjpc.o3dTFAtPose(self.obj_frame)
 
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)

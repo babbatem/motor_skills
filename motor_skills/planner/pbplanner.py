@@ -12,13 +12,13 @@ NDOF = 6
 URDFPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
 DOORPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/_frame.urdf'
 
-def pbsetup(load_door):
+def pbsetup():
     p.setAdditionalSearchPath(pybullet_data.getDataPath())
     p.setGravity(0,0,-10)
     p.loadURDF(URDFPATH, useFixedBase=True)
     p.loadURDF("plane.urdf", [0, 0, 0]) # This is also in URDF
-    if load_door:
-        p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
+    
+    p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
     return
 
 # class for collision checking in python
@@ -35,7 +35,7 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
         self.otherIds = []
         self.otherObj_states = {} # maps Uid to reset states
         self.otherObj_dofs = {} # maps Uid to joint indices to be reset
-        if door_uid:
+        if door_uid is not None:
             self.otherIds.append(door_uid)
             self.otherObj_states[door_uid] = [0,0]
             self.otherObj_dofs[door_uid] = [0,2]
@@ -109,16 +109,20 @@ class PbPlanner(object):
     """
         constructs pybullet simulation & plans therein with OMPL.
     """
-    def __init__(self, load_door=False):
+    def __init__(self, obj):
         super(PbPlanner, self).__init__()
+        self.obj = obj
 
+        if self.obj != 'door':
+            print("Objects other than door not implemented in pybullet")
+            return
         self.ik_thresh = 0.0001
         self.ik_max_iter = 10000
 
         # setup pybullet
         #p.connect(p.GUI)
         p.connect(p.DIRECT)
-        pbsetup(load_door)
+        pbsetup()
 
         # setup space
         lower = np.array([p.getJointInfo(0, i)[8] for i in range(NDOF)])
@@ -136,10 +140,11 @@ class PbPlanner(object):
 
         # Set the object used to check which states in the space are valid
         # TODO: Lookup door Uid. Currently assume it's 2 because robot is 0 and plane is 1
-        door_uid = 2 if load_door else None
-        self.validityChecker = pbValidityChecker(self.si, door_uid)
-        self.si.setStateValidityChecker(self.validityChecker)
-        self.si.setup()
+        if self.obj == 'door':
+            door_uid = 2
+            self.validityChecker = pbValidityChecker(self.si, door_uid)
+            self.si.setStateValidityChecker(self.validityChecker)
+            self.si.setup()
 
         self.runTime = 5.0
         self.plannerType = 'RRTstar'#'LazyPRMstar'

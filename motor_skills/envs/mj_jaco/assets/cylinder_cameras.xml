@@ -1,0 +1,8 @@
+<mujoco model="cams">
+    <body name="cam_0_body" pos="-0.3 0.0 0.3" euler="1. -0.5 0.0">
+      <camera name="cam_0" pos="0.0 0 0" fovy="60"></camera>
+    </body>
+    <body name="cam_1_body" pos="0.3 0.0 0.3" euler="1. 0.5 0.0">
+      <camera name="cam_1" pos="0.0 0 0" fovy="60"></camera>
+    </body>
+</mujoco>

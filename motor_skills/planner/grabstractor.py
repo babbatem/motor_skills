@@ -126,27 +126,35 @@ class Grabstractor(object):
 
     def visualizationVideoSample(self, num_grasps_to_display=50, num_values_per_range=4, filepath="/home/mcorsaro/grabstraction_results/"):
 
-        grabstraction_ranges = np.array((self.grabstracted_inputs.min(0), self.grabstracted_inputs.max(0)))
-
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)
 
-        for dim_to_vary in range(self.embedding_dim):
-            vals_to_vary = [grabstraction_ranges[0, dim_to_vary]+i*(grabstraction_ranges[1, dim_to_vary]-grabstraction_ranges[0, dim_to_vary])/(num_grasps_to_display-1) for i in range(num_grasps_to_display)]
-            vals_in_other_dims = []
-            for other_dim in range(self.embedding_dim):
-                if other_dim != dim_to_vary:
-                    vals_in_other_dims.append([grabstraction_ranges[0, other_dim]+i*(grabstraction_ranges[1, other_dim]-grabstraction_ranges[0, other_dim])/(num_values_per_range-1) for i in range(num_values_per_range)])
-            combinations_of_other_dim_vals = list(itertools.product(*vals_in_other_dims))
-            for other_dim_val_combination in combinations_of_other_dim_vals:
-                for varied_val in vals_to_vary:
-                    abstract_grasp_np = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
-                    np_grasp_pose = self.embedding.inverse_transform(abstract_grasp_np)
-                    grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                    filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in abstract_grasp_np]) + ".jpg"
-                    self.saveO3DScreenshot(file_dir, filename, self.cloud_with_normals, grasp_pose, abstract_grasp_np)
+        for grasp_family_i, grabstracted_input in enumerate(self.grabstracted_inputs):
+            grabstraction_dir = file_dir + '/' + str(grasp_family_i) + '/'
+            os.mkdir(grabstraction_dir)
+            grabstraction_ranges = np.array((grabstracted_input.min(0), grabstracted_input.max(0)))
+
+            for dim_to_vary in range(self.embedding_dim):
+                vals_to_vary = [grabstraction_ranges[0, dim_to_vary]+i*(grabstraction_ranges[1, dim_to_vary]-grabstraction_ranges[0, dim_to_vary])/(num_grasps_to_display-1) for i in range(num_grasps_to_display)]
+                vals_in_other_dims = []
+                for other_dim in range(self.embedding_dim):
+                    if other_dim != dim_to_vary:
+                        vals_in_other_dims.append([grabstraction_ranges[0, other_dim]+i*(grabstraction_ranges[1, other_dim]-grabstraction_ranges[0, other_dim])/(num_values_per_range-1) for i in range(num_values_per_range)])
+                combinations_of_other_dim_vals = list(itertools.product(*vals_in_other_dims))
+                for other_dim_val_combination in combinations_of_other_dim_vals:
+                    for varied_val in vals_to_vary:
+                        abstract_grasp_np = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
+                        np_grasp_pose = self.embeddings[grasp_family_i].inverse_transform(abstract_grasp_np)
+                        grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
+                        filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in abstract_grasp_np]) + ".jpg"
+                        self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, abstract_grasp_np)
 
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
+        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        os.mkdir(file_dir)
+
+        self.saveFamilyCloudScreenshot(file_dir)
+
         cloud_points = np.asarray(self.cloud_with_normals.points)
         cloud_color = np.empty((cloud_points.shape))
         min_z, max_z = cloud_points.min(0)[2], cloud_points.max(0)[2]
@@ -163,26 +171,61 @@ class Grabstractor(object):
         self.cloud_with_normals.colors = o3d.utility.Vector3dVector(cloud_color)
         #obj_axes = mjpc.o3dTFAtPose(self.obj_frame)
 
-        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
-        os.mkdir(file_dir)
-
         cloud_filename = 'cloud_screenshot.jpg'
         self.saveO3DScreenshot(file_dir, cloud_filename, self.cloud_with_normals)
-        grabstraction_filename = 'grabstraction.jpg'
 
-        if self.grabstracted_inputs.shape[1] == 2:
-            plt.scatter(self.grabstracted_inputs[:, 0], self.grabstracted_inputs[:, 1], c=cloud_color[range(cloud_color.shape[0])])
-            plt.savefig(file_dir + '/' + grabstraction_filename)
-        elif self.grabstracted_inputs.shape[1] == 3:
-            fig = plt.figure()
-            ax = fig.add_subplot(projection='3d')
-            ax.scatter(self.grabstracted_inputs[:, 0], self.grabstracted_inputs[:, 1], self.grabstracted_inputs[:, 2], c=cloud_color[range(cloud_color.shape[0])])
-            plt.savefig(file_dir + '/' + grabstraction_filename)
+        for grasp_family_i in range(len(self.grabstracted_inputs)):
+
+            grabstraction_filename = 'grabstraction_' + str(grasp_family_i) + '.jpg'
+            grabstracted_input = self.grabstracted_inputs[grasp_family_i]
+
+            if grabstracted_input.shape[1] == 2:
+                plt.scatter(grabstracted_input[:, 0], grabstracted_input[:, 1], c=cloud_color[self.grasp_family_indices[grasp_family_i]])
+                plt.savefig(file_dir + '/' + grabstraction_filename)
+                plt.clf()
+            elif grabstracted_input.shape[1] == 3:
+                fig = plt.figure()
+                ax = fig.add_subplot(projection='3d')
+                ax.scatter(grabstracted_input[:, 0], grabstracted_input[:, 1], grabstracted_input[:, 2], c=cloud_color[self.grasp_family_indices[grasp_family_i]])
+                plt.savefig(file_dir + '/' + grabstraction_filename)
+                plt.clf()
+
+    def saveFamilyCloudScreenshot(self, file_dir):
+        family_cloud = copy.deepcopy(self.cloud_with_normals)
+        family_cloud_points = np.asarray(family_cloud.points)
+        cloud_color = np.empty((family_cloud_points.shape))
+        unique_colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (255, 0, 255), (255, 128, 128), (128, 128, 128), (128, 0, 0), (255, 128, 0)]
+        for fam_i, family_indices in enumerate(self.grasp_family_indices):
+            for point_index in family_indices:
+                cloud_color[point_index] = unique_colors[fam_i]
+        family_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
+        self.saveO3DScreenshot(file_dir, 'grasp_families.jpg', family_cloud)
+
+    def clusterGraspsIntoFamilyIndices(self, original_space):
+        # TODO(mcorsaro): algorithm that works on any object
+        if self.obj == 'door':
+            grasp_family_space_indices = range(original_space.shape[0])
+            return [grasp_family_space_indices]
+        if self.obj == 'cylinder':
+            indices_on_top = []
+            indices_on_side = []
+            max_z = original_space.max(0)[2]
+            for i in range(original_space.shape[0]):
+                if original_space[i, 2] >= max_z-0.005:
+                    indices_on_top.append(i)
+                else:
+                    indices_on_side.append(i)
+            grasp_family_space_indices = [indices_on_top, indices_on_side]
+            return grasp_family_space_indices
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
 
         self.loadGripperMesh()
+        # TODO(mcorsaro): choose manually per grasp family
         self.embedding_dim=embedding_dim
+
+        #TODO(mcorsaro): grasp_poses, cloud_with_normals, and original_full_space should be condensed into one variable
+        # right now, we assume same size, I think
 
         # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
         grasp_pose_space = np.empty((len(self.grasp_poses), 7))
@@ -195,21 +238,32 @@ class Grabstractor(object):
             grasp_pose_space[i] = grasp_position + grasp_orientation
         #self.original_space = self.original_space[:, :3]
 
-        self.original_space = point_normal_space#grasp_pose_space
+        original_full_space = point_normal_space#grasp_pose_space
+        # after clustering
+        self.grasp_family_indices = self.clusterGraspsIntoFamilyIndices(original_full_space)
+        grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]
 
         if compression_alg=="isomap":
             # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
-            self.embedding = Isomap(n_neighbors=250, n_components=self.embedding_dim)
-            self.grabstracted_inputs = self.embedding.fit_transform(self.original_space)
+            self.embeddings = [Isomap(n_neighbors=250, n_components=self.embedding_dim) for grasp_families in grasp_family_spaces]
+            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(grasp_family_spaces)]
 
         elif compression_alg=="pca":
-            self.embedding = PCA(n_components=self.embedding_dim)
-            self.grabstracted_inputs = self.embedding.fit_transform(self.original_space)
+            self.embeddings = [PCA(n_components=self.embedding_dim) for grasp_families in grasp_family_spaces]
+            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(grasp_family_spaces)]
 
-        if embedding_dim==3:
+        '''
+        if embedding_dim<=3:
             #https://stackoverflow.com/questions/29661574/normalize-numpy-array-columns-in-python
             grabstracted_inputs_normed = (self.grabstracted_inputs - self.grabstracted_inputs.min(0)) / self.grabstracted_inputs.ptp(0)
+            # add a column of zeros if less than 3 dims
+            if embedding_dim<3:
+                grabstracted_inputs_normed = np.append(grabstracted_inputs_normed, np.zeros((grabstracted_inputs_normed.shape[0], 1)), axis=1)
+            # add an additional column of zeros if originally 1-dim
+            if embedding_dim==1:
+                grabstracted_inputs_normed = np.append(grabstracted_inputs_normed, np.zeros((grabstracted_inputs_normed.shape[0], 1)), axis=1)
             self.cloud_with_normals.colors = o3d.utility.Vector3dVector(grabstracted_inputs_normed)
+        '''
 
         '''
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()

@@ -20,6 +20,34 @@ import motor_skills.planner.grasp_pose_generator as gpg
 from sklearn.manifold import Isomap
 from sklearn.decomposition import PCA
 
+import tensorflow as tf
+from tensorflow.keras import layers, losses
+from tensorflow.keras.models import Model
+
+class Autoencoder(Model):
+    def __init__(self, original_dim, latent_dim):
+        super(Autoencoder, self).__init__()
+        self.latent_dim = latent_dim   
+        self.encoder = tf.keras.Sequential([
+            layers.Dense(latent_dim, activation='relu')
+        ])
+        self.decoder = tf.keras.Sequential([
+            layers.Dense(original_dim, activation='sigmoid')
+        ])
+
+    def call(self, x):
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
+
+    def transform(self, x):
+        encoded = self.encoder(x)
+        return encoded.numpy()
+
+    def inverse_transform(self, y):
+        decoded = self.decoder(y)
+        return decoded.numpy()
+
 class Grabstractor(object):
     def __init__(self, cloud_with_normals, grasp_poses, obj="door", use_obj_frame=True):
         self.cloud_with_normals = copy.deepcopy(cloud_with_normals)
@@ -251,6 +279,16 @@ class Grabstractor(object):
         elif compression_alg=="pca":
             self.embeddings = [PCA(n_components=self.embedding_dim) for grasp_families in grasp_family_spaces]
             self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(grasp_family_spaces)]
+
+        elif compression_alg=="autoencoder":
+            self.embeddings = [Autoencoder(original_full_space.shape[1], self.embedding_dim) for grasp_families in grasp_family_spaces]
+            self.grabstracted_inputs = []
+            for i, autoencoder in enumerate(self.embeddings):
+                autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
+                autoencoder.fit(grasp_family_spaces[i], grasp_family_spaces[i],
+                    epochs=10,
+                    shuffle=True)
+                self.grabstracted_inputs.append(autoencoder.transform(grasp_family_spaces[i]))
 
         '''
         if embedding_dim<=3:

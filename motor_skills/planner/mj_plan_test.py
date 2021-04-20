@@ -270,6 +270,6 @@ if __name__ == '__main__':
     #mjp.generateData()
     mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
-    fam_gen.generateGrabstraction(compression_alg="isomap", embedding_dim=3)
+    fam_gen.generateGrabstraction(compression_alg="autoencoder", embedding_dim=2)
     #fam_gen.visualizationVideoSample()
     fam_gen.visualizationProjectManifold()

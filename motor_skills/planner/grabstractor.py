@@ -29,9 +29,11 @@ class Autoencoder(Model):
         super(Autoencoder, self).__init__()
         self.latent_dim = latent_dim
         self.encoder = tf.keras.Sequential([
+            layers.Dense(latent_dim*2, activation='relu'),
             layers.Dense(latent_dim, activation='relu')
         ])
         self.decoder = tf.keras.Sequential([
+            layers.Dense(latent_dim*2, activation='sigmoid'),
             layers.Dense(original_dim, activation='sigmoid')
         ])
 
@@ -45,7 +47,8 @@ class Autoencoder(Model):
         return encoded.numpy()
 
     def inverse_transform(self, y):
-        decoded = self.decoder(y)
+        reshaped_y = y.reshape((1, -1)) if len(y.shape)==1 else y
+        decoded = self.decoder(reshaped_y)
         return decoded.numpy()
 
 class Grabstractor(object):

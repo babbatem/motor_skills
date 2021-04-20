@@ -29,11 +29,11 @@ class Autoencoder(Model):
         super(Autoencoder, self).__init__()
         self.latent_dim = latent_dim
         self.encoder = tf.keras.Sequential([
-            layers.Dense(latent_dim*2, activation='relu'),
+            layers.Dense(latent_dim*2-1, activation='relu'),
             layers.Dense(latent_dim, activation='relu')
         ])
         self.decoder = tf.keras.Sequential([
-            layers.Dense(latent_dim*2, activation='sigmoid'),
+            layers.Dense(latent_dim*2-1, activation='sigmoid'),
             layers.Dense(original_dim, activation='sigmoid')
         ])
 

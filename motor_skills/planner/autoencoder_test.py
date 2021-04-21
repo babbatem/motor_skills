@@ -65,6 +65,6 @@ y3 = np.random.random((100, 2))
 
 x2 = autoencoder0.inverseTransform(y2).numpy()
 x3 = autoencoder1.inverseTransform(y3).numpy()
-print("Reconstructed", x2.shape, x3.shape)
+print("Reconstructed", x2.shape, x3.shape, "from", y2.shape, y3.shape)
 
 print("done")

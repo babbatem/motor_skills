@@ -97,11 +97,16 @@ class GraspPoseGenerator(object):
         # sample point to use as grasp centroid
         sample_point = self.cloud_points[index]
         # vector anti-parallel to normal provided with input cloud
-        approach_vector = -1*self.cloud_norms[index]
+        normal_vector = self.cloud_norms[index]
+        return self.proposeGraspPosesAtPointNorm(sample_point, normal_vector)
+
+    def proposeGraspPosesAtPointNorm(self, sample_point, normal_vector):
+        approach_vector = -1*normal_vector
 
         # k indices corresponding to points within a self.search_radius radius
         #   of the sampled point.
-        [k, local_point_ids, _] = self.o3d_kdtree.search_radius_vector_3d(self.o3d_cloud.points[index], self.search_radius)
+        #TODO(mcorsaro): just use search_hybrid_vector_3d for rknn
+        [k, local_point_ids, _] = self.o3d_kdtree.search_radius_vector_3d(sample_point, self.search_radius)
         # self.max_nns closest points to sampled point
         nn_ids = local_point_ids[:self.max_nns]
         # create a new point cloud with sampled point and these local points

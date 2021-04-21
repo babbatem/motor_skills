@@ -29,11 +29,11 @@ class Autoencoder(Model):
         super(Autoencoder, self).__init__()
         self.latent_dim = latent_dim
         self.encoder = tf.keras.Sequential([
-            layers.Dense(latent_dim*2-1, activation='relu'),
+            layers.Dense(2*latent_dim, activation='relu'),
             layers.Dense(latent_dim, activation='relu')
         ])
         self.decoder = tf.keras.Sequential([
-            layers.Dense(latent_dim*2-1, activation='sigmoid'),
+            layers.Dense(2*latent_dim, activation='sigmoid'),
             layers.Dense(original_dim, activation='sigmoid')
         ])
 
@@ -49,12 +49,13 @@ class Autoencoder(Model):
     def inverse_transform(self, y):
         reshaped_y = y.reshape((1, -1)) if len(y.shape)==1 else y
         decoded = self.decoder(reshaped_y)
-        return decoded.numpy()
+        return decoded.numpy().reshape((-1))
 
 class Grabstractor(object):
     def __init__(self, cloud_with_normals, grasp_poses, obj="door", use_obj_frame=True):
         self.cloud_with_normals = copy.deepcopy(cloud_with_normals)
         self.grasp_poses = copy.deepcopy(grasp_poses)
+        self.gpg = gpg.GraspPoseGenerator(self.cloud_with_normals, rotation_values_about_approach=[0])
         self.vis_font = font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 33)
         self.obj = obj
         if self.obj == "door":
@@ -174,11 +175,18 @@ class Grabstractor(object):
                 combinations_of_other_dim_vals = list(itertools.product(*vals_in_other_dims))
                 for other_dim_val_combination in combinations_of_other_dim_vals:
                     for varied_val in vals_to_vary:
-                        abstract_grasp_np = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
-                        np_grasp_pose = self.embeddings[grasp_family_i].inverse_transform(abstract_grasp_np)
-                        grasp_pose = mjpc.npGraspArr2Mat(np_grasp_pose)
-                        filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in abstract_grasp_np]) + ".jpg"
-                        self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, abstract_grasp_np)
+                        sampled_grabstraction = np.array(other_dim_val_combination[:dim_to_vary] + tuple([varied_val]) + other_dim_val_combination[dim_to_vary:])
+                        sampled_pt_original_space = self.embeddings[grasp_family_i].inverse_transform(sampled_grabstraction)
+                        grasp_pose = None
+                        if sampled_pt_original_space.shape[0] == 7:
+                            grasp_pose = mjpc.npGraspArr2Mat(sampled_pt_original_space)
+                        elif sampled_pt_original_space.shape[0] == 6:
+                            np_grasp_position = sampled_pt_original_space[:3]
+                            np_grasp_normal = sampled_pt_original_space[3:] / np.linalg.norm(sampled_pt_original_space[3:])
+                            print(np_grasp_position, np_grasp_normal)
+                            grasp_pose = self.gpg.proposeGraspPosesAtPointNorm(np_grasp_position, np_grasp_normal)
+                        filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in sampled_grabstraction]) + ".jpg"
+                        self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, sampled_grabstraction)
 
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
@@ -272,26 +280,26 @@ class Grabstractor(object):
         original_full_space = point_normal_space#grasp_pose_space
         # after clustering
         self.grasp_family_indices = self.clusterGraspsIntoFamilyIndices(original_full_space)
-        grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]
+        self.grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]
 
         if compression_alg=="isomap":
             # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
-            self.embeddings = [Isomap(n_neighbors=250, n_components=self.embedding_dim) for grasp_families in grasp_family_spaces]
-            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(grasp_family_spaces)]
+            self.embeddings = [Isomap(n_neighbors=250, n_components=self.embedding_dim) for grasp_families in self.grasp_family_spaces]
+            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(self.grasp_family_spaces)]
 
         elif compression_alg=="pca":
-            self.embeddings = [PCA(n_components=self.embedding_dim) for grasp_families in grasp_family_spaces]
-            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(grasp_family_spaces)]
+            self.embeddings = [PCA(n_components=self.embedding_dim) for grasp_families in self.grasp_family_spaces]
+            self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(self.grasp_family_spaces)]
 
         elif compression_alg=="autoencoder":
-            self.embeddings = [Autoencoder(original_full_space.shape[1], self.embedding_dim) for grasp_families in grasp_family_spaces]
+            self.embeddings = [Autoencoder(original_full_space.shape[1], self.embedding_dim) for grasp_families in self.grasp_family_spaces]
             self.grabstracted_inputs = []
             for i, autoencoder in enumerate(self.embeddings):
                 autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
-                autoencoder.fit(grasp_family_spaces[i], grasp_family_spaces[i],
-                    epochs=10,
+                autoencoder.fit(self.grasp_family_spaces[i], self.grasp_family_spaces[i],
+                    epochs=50,
                     shuffle=True)
-                self.grabstracted_inputs.append(autoencoder.transform(grasp_family_spaces[i]))
+                self.grabstracted_inputs.append(autoencoder.transform(self.grasp_family_spaces[i]))
 
         '''
         if embedding_dim<=3:

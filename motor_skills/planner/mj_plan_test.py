@@ -272,4 +272,5 @@ if __name__ == '__main__':
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
     fam_gen.generateGrabstraction(compression_alg="autoencoder", embedding_dim=2)
     #fam_gen.visualizationVideoSample()
+    fam_gen.visualizeGraspPoses()
     fam_gen.visualizationProjectManifold()

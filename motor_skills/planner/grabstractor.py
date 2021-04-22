@@ -188,6 +188,15 @@ class Grabstractor(object):
                         filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in sampled_grabstraction]) + ".jpg"
                         self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, sampled_grabstraction)
 
+    def visualizeGraspPoses(self, filepath="/home/mcorsaro/grabstraction_results/"):
+        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        os.mkdir(file_dir)
+        grabstraction_dir = file_dir + '/0/'
+        os.mkdir(grabstraction_dir)
+        for grasp_pose in self.grasp_poses:
+            filename = '0' + ''.join(["_{:.9f}".format(v) for v in grasp_pose[:3, 3]]) + ".jpg"
+            self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, grasp_pose[:3, 3])
+
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)

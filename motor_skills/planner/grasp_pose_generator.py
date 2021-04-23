@@ -122,11 +122,11 @@ class GraspPoseGenerator(object):
         eigenvalues, eigenvectors = np.linalg.eig(covar_mat)
         min_eig_id = eigenvalues.argmin()
         max_eig_id = eigenvalues.argmax()
-        mid_eig_id = 3 - max_eig_id - min_eig_id
+        #mid_eig_id = 3 - max_eig_id - min_eig_id
         # approach direction is eigenvector with smallest eigenvalue (normal)
         hand_rot_approach = eigenvectors[:, min_eig_id]
         # closing direction is eigenvector with middle eigenvalue
-        hand_rot_closing = eigenvectors[:, mid_eig_id]
+        hand_rot_closing = eigenvectors[:, max_eig_id]
         # ensure approach estimated from local cloud is in the same direction
         #   as given approach vector (anti-parallel to provided normal), which
         #   has presumably been oriented based on camera position. Note

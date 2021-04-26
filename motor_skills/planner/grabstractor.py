@@ -64,6 +64,9 @@ class Grabstractor(object):
         elif self.obj == "cylinder":
             self.obj_frame = mjpc.posRotMat2Mat([0, 0.5, 0], mjpc.quat2Mat([1, 0, 0, 0]))
             self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/CylinderOpen3DCamPose.json"
+        elif self.obj == "box":
+            self.obj_frame = mjpc.posRotMat2Mat([0, 0.5, 0], mjpc.quat2Mat([1, 0, 0, 0]))
+            self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/BoxOpen3DCamPose.json"
         if use_obj_frame:
             self.visualization_view_param_file = self.visualization_view_param_file[:-5] + '_obj_frame.json'
             self.cloud_with_normals.transform(np.linalg.inv(self.obj_frame))
@@ -247,6 +250,7 @@ class Grabstractor(object):
             for point_index in family_indices:
                 cloud_color[point_index] = unique_colors[fam_i]
         family_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
+        #o3d.visualization.draw_geometries([family_cloud])
         self.saveO3DScreenshot(file_dir, 'grasp_families.jpg', family_cloud)
 
     def clusterGraspsIntoFamilyIndices(self, original_space):
@@ -254,7 +258,7 @@ class Grabstractor(object):
         if self.obj == 'door':
             grasp_family_space_indices = range(original_space.shape[0])
             return [grasp_family_space_indices]
-        if self.obj == 'cylinder':
+        elif self.obj == 'cylinder':
             indices_on_top = []
             indices_on_side = []
             max_z = original_space.max(0)[2]
@@ -265,6 +269,28 @@ class Grabstractor(object):
                     indices_on_side.append(i)
             grasp_family_space_indices = [indices_on_top, indices_on_side]
             return grasp_family_space_indices
+        elif self.obj == 'box':
+            indices_on_top = []
+            indices_on_front = []
+            indices_on_right = []
+            indices_on_left = []
+            max_z = original_space.max(0)[2]
+            max_x = original_space.max(0)[0]
+            min_x = original_space.min(0)[0]
+            for i in range(original_space.shape[0]):
+                if original_space[i, 2] >= max_z-0.0005:
+                    indices_on_top.append(i)
+                elif original_space[i, 0] >= max_x-0.0005:
+                    indices_on_right.append(i)
+                elif original_space[i, 0] <= min_x+0.0005:
+                    indices_on_left.append(i)
+                else:
+                    indices_on_front.append(i)
+            grasp_family_space_indices = [indices_on_top, indices_on_front, indices_on_right, indices_on_left]
+            lens = [len(v) for v in grasp_family_space_indices]
+            print(lens)
+            return grasp_family_space_indices
+
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
 

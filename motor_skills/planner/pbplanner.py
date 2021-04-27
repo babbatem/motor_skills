@@ -69,6 +69,22 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
                 self.check_joint_limits(state)
                )
 
+    # sets state and checks joint limits and collision, and returns code as to why
+    def isInvalid(self, state):
+
+        self.resetRobot(state)
+        self.resetScene()
+
+        p.stepSimulation()
+        # if True, no collisions
+        if not self.detect_collisions(self.otherIds):
+            return 1
+        if not self.check_plane_collision():
+            return 2
+        if not self.check_joint_limits(state):
+            return 3
+        return 0
+
     # Returns True if there is no collision with plane
     def check_plane_collision(self):
         contactPoints = p.getContactPoints(0, 1)
@@ -153,7 +169,7 @@ class PbPlanner(object):
         #ompl_base.PlannerDataStorage.load
 
     def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat, starting_state=None):
-        if starting_state != None:
+        if starting_state is not None:
             for i in range(NDOF):
                 p.resetJointState(robotId, i, starting_state[i])
         closeEnough = False

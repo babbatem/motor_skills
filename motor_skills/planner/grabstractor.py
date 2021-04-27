@@ -200,6 +200,22 @@ class Grabstractor(object):
             filename = '0' + ''.join(["_{:.9f}".format(v) for v in grasp_pose[:3, 3]]) + ".jpg"
             self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, grasp_pose[:3, 3])
 
+    def visualizeGraspLabels(self, label_list, filepath="/home/mcorsaro/grabstraction_results/"):
+        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        os.mkdir(file_dir)
+        labeled_cloud = copy.deepcopy(self.cloud_with_normals)
+        labeled_cloud_points = np.asarray(labeled_cloud.points)
+        if labeled_cloud_points.shape[0] != len(label_list):
+            print("Error: Can't visualize grasp labels of shape", len(label_list), "and cloud of shape", labeled_cloud_points.shape[0])
+            sys.exit()
+        cloud_color = np.empty((labeled_cloud_points.shape))
+        unique_colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (255, 0, 255), (255, 128, 128), (128, 128, 128), (128, 0, 0), (255, 128, 0)]
+        for point_i in range(labeled_cloud_points.shape[0]):
+            cloud_color[point_i] = unique_colors[label_list[point_i]]
+        labeled_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
+        #o3d.visualization.draw_geometries([labeled_cloud])
+        self.saveO3DScreenshot(file_dir, 'grasp_labels.jpg', labeled_cloud)
+
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)

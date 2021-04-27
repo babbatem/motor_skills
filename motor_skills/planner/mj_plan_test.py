@@ -20,7 +20,7 @@ from mujoco_py import load_model_from_path, MjSim, MjViewer
 import open3d as o3d
 
 class MujocoPlanExecutor(object):
-    def __init__(self, obj):
+    def __init__(self, obj, visualize=True):
         super(MujocoPlanExecutor, self).__init__()
         self.obj = obj
 
@@ -35,7 +35,7 @@ class MujocoPlanExecutor(object):
         model = load_model_from_path(motor_skills_dir + '/' + model_file)
                 #load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
         self.sim = MjSim(model)
-        self.viewer = MjViewer(self.sim)
+        self.viewer = MjViewer(self.sim) if visualize else None
 
         ##### Fingers #####
         # compute indices and per timestep delta q
@@ -78,8 +78,12 @@ class MujocoPlanExecutor(object):
         self.door_dofs = None if self.obj != 'door' else [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
         self.finger_joint_range = self.sim.model.jnt_range[:self.tDOF, ]
 
+    def mj_render(self):
+        if self.viewer is not None:
+            self.viewer.render()
+
     def executePlan(self, plan):
-        plan.interpolate(1000)
+        plan.interpolate(200)
         H = plan.getStateCount()
         for t in range(H):
             state_t = plan.getState(t)
@@ -92,7 +96,7 @@ class MujocoPlanExecutor(object):
             torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*300)
             self.sim.data.ctrl[:self.aDOF]=torques
             self.sim.step()
-            self.viewer.render()
+            self.mj_render()
             time.sleep(0.01)
 
         # Make sure it reaches the goal
@@ -100,7 +104,7 @@ class MujocoPlanExecutor(object):
             torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*100)
             self.sim.data.ctrl[:self.aDOF]=torques
             self.sim.step()
-            self.viewer.render()
+            self.mj_render()
 
     # https://github.com/babbatem/motor_skills/blob/impedance/motor_skills/cip/MjGraspHead.py
     def closeFingers(self):
@@ -139,8 +143,7 @@ class MujocoPlanExecutor(object):
             self.sim.forward()
             self.sim.step()
 
-            if self.viewer is not None:
-                self.viewer.render()
+            self.mj_render()
 
         # Make sure goals are within limits
         for f_idx in self.finger_joint_idxs:
@@ -151,8 +154,7 @@ class MujocoPlanExecutor(object):
         for t in range(200):
             self.sim.data.ctrl[:] = mjc.pd([0] * self.tDOF, [0] * self.tDOF, new_pos, self.sim, ndof=self.tDOF, kp=np.eye(self.tDOF)*300)
             self.sim.step()
-            if self.viewer != None:
-                self.viewer.render()
+            self.mj_render()
 
     def resetDoor(self):
         for mj_id in self.door_dofs:
@@ -164,7 +166,7 @@ class MujocoPlanExecutor(object):
         self.start_joints = [0, np.pi, np.pi, 0, np.pi, 0]
         self.sim.data.qpos[:self.aDOF] = self.start_joints
         self.sim.step()
-        self.viewer.render()
+        self.mj_render()
 
         self.cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
         num_points = np.asarray(self.cloud_with_normals.points).shape[0]
@@ -211,7 +213,7 @@ class MujocoPlanExecutor(object):
             self.sim.step()
             o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
             while True:
-                self.viewer.render()
+                self.mj_render()
             print(grasp_goal)
             '''
             ################################################################
@@ -226,28 +228,34 @@ class MujocoPlanExecutor(object):
                 if grasp_invalid_code:
                     result_labels.append(grasp_invalid_code+3+1)
                 else:
-                    pregrasp_axes = mjpc.o3dTFAtPose(pregrasp_pose)
-                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes])
+                    #pregrasp_axes = mjpc.o3dTFAtPose(pregrasp_pose)
+                    #o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes])
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal)
-                    self.viewer.render()
+                    self.mj_render()
+                    ps = time.time()
                     self.executePlan(pregrasp_path)
-                    self.viewer.render()
+                    print("Executed pregrasp in", time.time()-ps)
+                    self.mj_render()
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     grasp_goal = grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=current_joint_vals.tolist() + [0]*6)
                     grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
                     if grasp_invalid_code:
                         result_labels.append(grasp_invalid_code+6+1)
                     else:
-                        grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
-                        o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes])
+                        #grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
+                        #o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes])
                         current_joint_vals = self.sim.data.qpos[:self.aDOF]
                         grasp_path=self.planner.plan(current_joint_vals, grasp_goal)
-                        self.viewer.render()
+                        self.mj_render()
+                        gs = time.time()
                         self.executePlan(grasp_path)
-                        self.viewer.render()
+                        print("Executed grasp in", time.time()-gs)
+                        self.mj_render()
+                        fs = time.time()
                         self.closeFingers()
-                        self.viewer.render()
+                        print("Closed fingers in", time.time()-fs)
+                        self.mj_render()
                         sys.exit()
             result_time.append(time.time()-start_time)
             c+=1
@@ -268,7 +276,7 @@ class MujocoPlanExecutor(object):
         fam_gen.visualizeGraspLabels(result_labels)
         sys.exit()
         while True:
-            self.viewer.render()
+            self.mj_render()
 
         print("Now planning pre-grasp motion.")
         pregrasp_path=self.planner.plan(start, pregrasp_goal)
@@ -289,12 +297,12 @@ class MujocoPlanExecutor(object):
         current_joint_vals = self.sim.data.qpos[:self.aDOF]
         back_result = self.planner.plan(current_joint_vals, start)
 
-        self.viewer.render()
+        self.mj_render()
         _=input('enter to start execution')
         self.executePlan(back_result)
 
         while True:
-            self.viewer.render()
+            self.mj_render()
 
 if __name__ == '__main__':
     obj = 'door'

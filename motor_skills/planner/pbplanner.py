@@ -134,6 +134,7 @@ class PbPlanner(object):
             return
         self.ik_thresh = 0.0001
         self.ik_max_iter = 10000
+        self.ik_rot_thresh = 0.0001
 
         # setup pybullet
         #p.connect(p.GUI)
@@ -179,14 +180,20 @@ class PbPlanner(object):
             jointPoses = p.calculateInverseKinematics(robotId, endEffectorIndex, targetPos, targetQuat)
             for i in range(NDOF):
                 p.resetJointState(robotId, i, jointPoses[i])
-            ls = p.getLinkState(robotId, endEffectorIndex)
-            newPos = ls[4]
-            diff = [targetPos[0] - newPos[0], targetPos[1] - newPos[1], targetPos[2] - newPos[2]]
+            new_pos, new_quat = self.calculateForwardKinematics(robotId, endEffectorIndex)
+            diff = [targetPos[0] - new_pos[0], targetPos[1] - new_pos[1], targetPos[2] - new_pos[2]]
             dist2 = (diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2])
-            closeEnough = (dist2 < self.ik_thresh)
+            np_nq, np_tq = np.array(new_quat), np.array(targetQuat)
+            rot_diff = 2*np.arccos(np.dot(np_nq, np_tq))
+            closeEnough = (dist2 < self.ik_thresh) and (rot_diff < self.ik_rot_thresh)
             c_iter = c_iter + 1
-        #print ("Num iter: "+str(iter) + "threshold: "+str(dist2))
+        #print ("Num iter:", c_iter, "threshold:", dist2, rot_diff)
         return jointPoses
+
+    def calculateForwardKinematics(self, robotId, endEffectorIndex):
+        link_state = p.getLinkState(robotId, endEffectorIndex)
+        ee_pos, ee_quat = link_state[4:6]
+        return (ee_pos, ee_quat)
 
     # goal ee xyz position
     # goal ee wxyz orientation

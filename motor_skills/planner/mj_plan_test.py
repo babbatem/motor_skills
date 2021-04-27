@@ -30,6 +30,8 @@ class MujocoPlanExecutor(object):
             model_file = 'motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_door.xml'
         elif self.obj == 'cylinder':
             model_file = 'motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_cylinder.xml'
+        elif self.obj == 'box':
+            model_file = 'motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_box.xml'
         model = load_model_from_path(motor_skills_dir + '/' + model_file)
                 #load_model_from_path(motor_skills_dir + '/motor_skills/envs/mj_jaco/assets/kinova_j2s6s300/mj-j2s6s300_nodoor.xml')
         self.sim = MjSim(model)
@@ -63,11 +65,14 @@ class MujocoPlanExecutor(object):
         door_bounds = [(-2., -2., 0.05), (2., 2., 2.)]
         handle_bounds = [(0.189, -2., 0.05), (2., 0.4, 2.)]
         cylinder_bounds = [(-1, 0.1, 0.01), (1., 1., 1.)]
+        box_bounds = [(-1, 0.1, 0.01), (1., 1., 1.)]
         crop_bounds = None
         if self.obj == 'door':
             crop_bounds = handle_bounds
         elif self.obj == 'cylinder':
             crop_bounds = cylinder_bounds
+        elif self.obj == 'box':
+            crop_bounds = box_bounds
         self.pc_gen = mjpc.PointCloudGenerator(self.sim, min_bound=crop_bounds[0], max_bound=crop_bounds[1])
 
         self.door_dofs = None if self.obj != 'door' else [self.sim.model.joint_name2id('door_hinge'), self.sim.model.joint_name2id('latch')]
@@ -173,7 +178,7 @@ class MujocoPlanExecutor(object):
 
     def generateData(self):
 
-        self.setUpSimAndGenCloudsAndGenCandidates()
+        self.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
 
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
         '''
@@ -186,6 +191,7 @@ class MujocoPlanExecutor(object):
         result_time = []
         c = 0
         batch_start_time = time.time()
+        print("Now attempting", len(self.grasp_poses), "grasp poses.")
         for grasp_pose in self.grasp_poses:
             start_time = time.time()
             pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, 0.15)
@@ -210,22 +216,46 @@ class MujocoPlanExecutor(object):
             '''
             ################################################################
 
-            pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation)
-            if not self.planner.validityChecker.isValid(pregrasp_goal):
-                result_labels.append(2)
+            pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation, starting_state=self.start_joints + [0.0]*6)
+            pregrasp_invalid_code = self.planner.validityChecker.isInvalid(pregrasp_goal)
+            if pregrasp_invalid_code:
+                result_labels.append(pregrasp_invalid_code+1)
             else:
                 grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=pregrasp_goal)
-                if not self.planner.validityChecker.isValid(grasp_goal):
-                    result_labels.append(3)
+                grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
+                if grasp_invalid_code:
+                    result_labels.append(grasp_invalid_code+3+1)
                 else:
-                    result_labels.append(1)
+                    pregrasp_axes = mjpc.o3dTFAtPose(pregrasp_pose)
+                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes])
+                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal)
+                    self.viewer.render()
+                    self.executePlan(pregrasp_path)
+                    self.viewer.render()
+                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    grasp_goal = grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=current_joint_vals.tolist() + [0]*6)
+                    grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
+                    if grasp_invalid_code:
+                        result_labels.append(grasp_invalid_code+6+1)
+                    else:
+                        grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
+                        o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes])
+                        current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                        grasp_path=self.planner.plan(current_joint_vals, grasp_goal)
+                        self.viewer.render()
+                        self.executePlan(grasp_path)
+                        self.viewer.render()
+                        self.closeFingers()
+                        self.viewer.render()
+                        sys.exit()
             result_time.append(time.time()-start_time)
             c+=1
             if c%100==0:
                 print(c, "in", time.time()-batch_start_time)
                 batch_start_time=time.time()
 
-            #o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
+        #o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
         label_types = list(np.unique(result_labels))
         label_counts = [(l, result_labels.count(l)) for l in label_types]
         print("Times:", result_time)
@@ -234,7 +264,9 @@ class MujocoPlanExecutor(object):
             indices = np.where(np.array(result_labels) == label_type)[0]
             all_times_this_label = [result_time[ind] for ind in indices]
             print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
-
+        fam_gen = grb.Grabstractor(self.cloud_with_normals, self.grasp_poses, obj=self.obj)
+        fam_gen.visualizeGraspLabels(result_labels)
+        sys.exit()
         while True:
             self.viewer.render()
 
@@ -265,12 +297,12 @@ class MujocoPlanExecutor(object):
             self.viewer.render()
 
 if __name__ == '__main__':
-    obj = 'cylinder'
+    obj = 'door'
     mjp = MujocoPlanExecutor(obj=obj)
-    #mjp.generateData()
-    mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
-    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
-    fam_gen.generateGrabstraction(compression_alg="autoencoder", embedding_dim=2)
+    mjp.generateData()
+    #mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
+    #fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
+    #fam_gen.generateGrabstraction(compression_alg="isomap", embedding_dim=2)
     #fam_gen.visualizationVideoSample()
-    fam_gen.visualizeGraspPoses()
-    fam_gen.visualizationProjectManifold()
+    #fam_gen.visualizeGraspPoses()
+    #fam_gen.visualizationProjectManifold()

@@ -9,6 +9,7 @@ from ompl import base as ompl_base
 from ompl import geometric as ompl_geo
 
 NDOF = 6
+FDOF = 6
 URDFPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/kinova_j2s6s300/j2s6s300.urdf'
 DOORPATH='/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/assets/_frame.urdf'
 
@@ -40,13 +41,29 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
             self.otherObj_states[door_uid] = [0,0]
             self.otherObj_dofs[door_uid] = [0,2]
 
-    def resetRobot(self, state):
+        self.open_finger_state = None
+        self.current_finger_state = None
+
+    def resetFingerState(self):
+        for i in range(FDOF):
+            # reset joints with 0 velocity
+            p.resetJointState(0, i+NDOF, self.current_finger_state[i], 0)
+
+    def updateFingerState(self, finger_state):
+        self.current_finger_state = finger_state
+        self.resetFingerState()
+
+    def resetRobot(self, state, velocity=None):
         # TODO(mcorsaro): make this compatible with all "state" types (ompl.base._base.RealVectorStateInternal)
         '''if len(state) != NDOF:
             print("Resetting robot with states of size", len(state), "but robot is of size", NDOF)
             sys.exit()'''
         for i in range(NDOF):
-            p.resetJointState(0,i,state[i],0)
+            if velocity is not None:
+                p.resetJointState(0,i,state[i],velocity)
+            else:
+                p.resetJointState(0,i,state[i])
+        self.resetFingerState()
 
     def resetScene(self):
         # TODO: more general
@@ -59,7 +76,7 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
     # sets state and checks joint limits and collision
     def isValid(self, state):
 
-        self.resetRobot(state)
+        self.resetRobot(state, velocity=0)
         self.resetScene()
 
         p.stepSimulation()
@@ -72,7 +89,7 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
     # sets state and checks joint limits and collision, and returns code as to why
     def isInvalid(self, state):
 
-        self.resetRobot(state)
+        self.resetRobot(state, velocity=0)
         self.resetScene()
 
         p.stepSimulation()
@@ -137,8 +154,8 @@ class PbPlanner(object):
         self.ik_rot_thresh = 0.0001
 
         # setup pybullet
-        #p.connect(p.GUI)
-        p.connect(p.DIRECT)
+        p.connect(p.GUI)
+        #p.connect(p.DIRECT)
         pbsetup()
 
         # setup space
@@ -164,22 +181,23 @@ class PbPlanner(object):
             self.si.setup()
 
         self.runTime = 5.0
-        self.plannerType = 'RRTstar'#'LazyPRMstar'
 
         #ompl_base.PlannerDataStorage.store
         #ompl_base.PlannerDataStorage.load
 
     def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat, starting_state=None):
         if starting_state is not None:
-            for i in range(NDOF):
-                p.resetJointState(robotId, i, starting_state[i])
+            self.validityChecker.resetRobot(starting_state, velocity=0)
         closeEnough = False
         c_iter = 0
         dist2 = 1e30
         while (not closeEnough and c_iter < self.ik_max_iter):
             jointPoses = p.calculateInverseKinematics(robotId, endEffectorIndex, targetPos, targetQuat)
-            for i in range(NDOF):
-                p.resetJointState(robotId, i, jointPoses[i])
+            '''print(len(jointPoses))
+            for j in range(p.getNumBodies()):
+                for i in range(p.getNumJoints(j)):
+                    print(j, i, p.getJointInfo(j, i))'''
+            self.validityChecker.resetRobot(jointPoses)
             new_pos, new_quat = self.calculateForwardKinematics(robotId, endEffectorIndex)
             diff = [targetPos[0] - new_pos[0], targetPos[1] - new_pos[1], targetPos[2] - new_pos[2]]
             dist2 = (diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2])
@@ -190,32 +208,22 @@ class PbPlanner(object):
         #print ("Num iter:", c_iter, "threshold:", dist2, rot_diff)
         return jointPoses
 
-    def calculateForwardKinematics(self, robotId, endEffectorIndex):
+    def calculateForwardKinematics(self, robotId, endEffectorIndex, joint_state=None):
+        if joint_state is not None:
+            self.validityChecker.resetRobot(joint_state, velocity=0)
         link_state = p.getLinkState(robotId, endEffectorIndex)
         ee_pos, ee_quat = link_state[4:6]
         return (ee_pos, ee_quat)
 
-    # goal ee xyz position
-    # goal ee wxyz orientation
-    def get_ik_pose(self, goal_position, goal_orientation, verbose=False):
+    def plan(self, start_q, goal_q, check_validity=True):
 
-        #get accurate solution not including orientation
-        s = self.accurateCalculateInverseKinematics(0, NDOF, goal_position, goal_orientation)
-        #set joints
-        for i in range(len(s)):
-            p.resetJointState(0,i,s[i],0)
-        p.stepSimulation()
+        if check_validity:
+            if (not self.validityChecker.isValid(start_q)):
+                raise Exception("Start joints put robot in collision.")
+            if (not self.validityChecker.isValid(goal_q)):
+                raise Exception("Goal joints put robot in collision.")
 
-        return(s)
-
-    def plan(self, start_q, goal_q):
-
-        if (not self.validityChecker.isValid(start_q)):
-            raise Exception("Start joints put robot in collision.")
-        if (not self.validityChecker.isValid(goal_q)):
-            raise Exception("Goal joints put robot in collision.")
-
-        self.validityChecker.resetRobot(start_q)
+        self.validityChecker.resetRobot(start_q, velocity=0)
         self.validityChecker.resetScene()
 
         # start and goal configs

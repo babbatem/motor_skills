@@ -193,10 +193,6 @@ class PbPlanner(object):
         dist2 = 1e30
         while (not closeEnough and c_iter < self.ik_max_iter):
             jointPoses = p.calculateInverseKinematics(robotId, endEffectorIndex, targetPos, targetQuat)
-            '''print(len(jointPoses))
-            for j in range(p.getNumBodies()):
-                for i in range(p.getNumJoints(j)):
-                    print(j, i, p.getJointInfo(j, i))'''
             self.validityChecker.resetRobot(jointPoses)
             new_pos, new_quat = self.calculateForwardKinematics(robotId, endEffectorIndex)
             diff = [targetPos[0] - new_pos[0], targetPos[1] - new_pos[1], targetPos[2] - new_pos[2]]

@@ -95,6 +95,7 @@ class Grabstractor(object):
 
         # Transforms pulled from URDF
         proximal2distal = mjpc.posEuler2Mat([0.044, -0.003, 0], [0, 0, 0])
+        # TODO(mcorsaro): thumb orientation isn't quite right, adjust the last euler angle
         hand2proximal1 = mjpc.posEuler2Mat([0.00279, 0.03126, -0.11467], [-1.570796327, .649262481663582, 1.35961148639407])
         hand2proximal2 = mjpc.posEuler2Mat([0.02226, -0.02707, -0.11482], [-1.570796327, .649262481663582, -1.38614049188413])
         hand2proximal3 = mjpc.posEuler2Mat([-0.02226, -0.02707, -0.11482], [-1.570796327, .649262481663582, -1.75545216211587])
@@ -111,7 +112,7 @@ class Grabstractor(object):
 
     def transformGripperMesh(self, t_mat):
         rotation_about_x = np.eye(4)
-        rotation_about_x[:3, :3] = mjpc.quat2Mat([0, 1, 0, 0])
+        rotation_about_x[:3, :3] = mjpc.quat2Mat([0, 0.70710678118, 0.70710678118, 0])
         # by default, hand points into negative z; flip about x by pi
         hand_transform = np.matmul(t_mat, rotation_about_x)
         # origin isn't end effector frame, so pull it back by distance in URDF's j2s6s300_joint_end_effector

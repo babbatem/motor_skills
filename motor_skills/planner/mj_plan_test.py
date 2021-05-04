@@ -186,33 +186,40 @@ class MujocoPlanExecutor(object):
         self.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
 
         world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        '''
-        0 - attempt failed
-        1 - attempt succeeded
-        2 - pregrasp ik failed
-        3 - grasp ik failed
-        '''
         result_labels = []
         result_time = []
         c = 0
         batch_start_time = time.time()
         print("Now attempting", len(self.grasp_poses), "grasp poses.")
+        pregrasp_dist = 0.15
+        dist_from_point_to_ee_link = 0.16
         # The arm should be straight up
-        #current_joint_vals = self.sim.data.qpos[:self.aDOF]
-        #initial_position, initial_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
-        #initial_position, initial_orientation = list(initial_position), list(initial_orientation)
-        #initial_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(initial_position, mjpc.quat2Mat(initial_orientation)))
-        #o3d.visualization.draw_geometries([self.cloud_with_normals, world_axes, initial_axes])
-        #print("Initial pose", initial_position, initial_orientation)
+        '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
+        initial_position, initial_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
+        initial_position, initial_orientation = list(initial_position), list(initial_orientation)
+        initial_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(initial_position, mjpc.quat2Mat(initial_orientation)))
+        o3d.visualization.draw_geometries([self.cloud_with_normals, world_axes, initial_axes])
+        print("Initial pose", initial_position, initial_orientation)'''
         # y is approach, z is closing (2 to 1), x is negative x (left, looking towards door)
         for grasp_pose in self.grasp_poses:
             start_time = time.time()
-            pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, 0.15)
+
+            pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, dist_from_point_to_ee_link + pregrasp_dist)
+            grasp_pose = gpg.translateFrameNegativeZ(grasp_pose, dist_from_point_to_ee_link)
             # Pregrasp and grasp orientation are the same, so just use grasp_or
-            pregrasp_position, pregrasp_orientation = mjpc.mat2PosQuat(pregrasp_pose)
+            pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
 
+            # set gripper y to grasp pose z, gripper z to grasp pose x
+            correcting_rotation = np.zeros((3, 3))
+            correcting_rotation[2, 1] = 1
+            correcting_rotation[0, 2] = 1
+            correcting_rotation[1, 0] = 1
+            corrected_grasp_rot_mat = np.matmul(mjpc.quat2Mat(grasp_orientation), correcting_rotation)
+            grasp_orientation = mjpc.mat2Quat(corrected_grasp_rot_mat)
+
             self.sim.data.qpos[:self.aDOF] = self.start_joints
+            self.sim.data.qpos[self.aDOF:self.tDOF] = self.planner.validityChecker.open_finger_state
             self.sim.step()
 
             ##############################################################
@@ -241,16 +248,21 @@ class MujocoPlanExecutor(object):
                 if grasp_invalid_code:
                     result_labels.append(grasp_invalid_code+3+1)
                 else:
-                    #pregrasp_axes = mjpc.o3dTFAtPose(pregrasp_pose)
-                    #o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes])
-                    # both are valid, compute path to pregrasp joint goal
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal, check_validity=False)
                     ps = time.time()
                     self.executePlan(pregrasp_path)
                     print("Executed pregrasp in", time.time()-ps)
 
-                    #current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    result_labels.append(0)
+                    continue
+
+                    '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    actual_pregrasp_position, actual_pregrasp_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
+                    print(actual_pregrasp_position, actual_pregrasp_orientation)
+                    pregrasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(pregrasp_position, mjpc.quat2Mat(grasp_orientation)))
+                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes, world_axes, actual_axes])
+                    sys.exit()'''
                     #print("Pregrasp pose", self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist()))
                     #print("Pregrasp desired pose", pregrasp_position, grasp_orientation)
 
@@ -260,8 +272,8 @@ class MujocoPlanExecutor(object):
                     if grasp_invalid_code:
                         result_labels.append(grasp_invalid_code+6+1)
                     else:
-                        #grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
-                        #o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes])
+                        grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
+                        o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes, world_axes])
                         current_joint_vals = self.sim.data.qpos[:self.aDOF]
                         grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
                         gs = time.time()

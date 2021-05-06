@@ -142,7 +142,7 @@ class PbPlanner(object):
     """
         constructs pybullet simulation & plans therein with OMPL.
     """
-    def __init__(self, obj):
+    def __init__(self, obj, prm_filename):
         super(PbPlanner, self).__init__()
         self.obj = obj
 
@@ -151,11 +151,11 @@ class PbPlanner(object):
             return
         self.ik_thresh = 0.0001
         self.ik_max_iter = 10000
-        self.ik_rot_thresh = 0.0001
+        self.ik_rot_thresh = 0.00001
 
         # setup pybullet
-        p.connect(p.GUI)
-        #p.connect(p.DIRECT)
+        #p.connect(p.GUI)
+        p.connect(p.DIRECT)
         pbsetup()
 
         # setup space
@@ -180,10 +180,15 @@ class PbPlanner(object):
             self.si.setStateValidityChecker(self.validityChecker)
             self.si.setup()
 
-        self.runTime = 5.0
+        storage = ompl_base.PlannerDataStorage()
+        planner_data = ompl_base.PlannerData(self.si)
+        storage.load(prm_filename, planner_data)
+        self.optimizingPlanner = ompl_geo.LazyPRMstar(planner_data)
 
-        #ompl_base.PlannerDataStorage.store
-        #ompl_base.PlannerDataStorage.load
+        # filename specified, load PRM, plan fast
+        self.runTime = 0.01
+
+        self.setup = False
 
     def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat, starting_state=None):
         if starting_state is not None:
@@ -195,10 +200,7 @@ class PbPlanner(object):
             jointPoses = p.calculateInverseKinematics(robotId, endEffectorIndex, targetPos, targetQuat)
             self.validityChecker.resetRobot(jointPoses)
             new_pos, new_quat = self.calculateForwardKinematics(robotId, endEffectorIndex)
-            diff = [targetPos[0] - new_pos[0], targetPos[1] - new_pos[1], targetPos[2] - new_pos[2]]
-            dist2 = (diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2])
-            np_nq, np_tq = np.array(new_quat), np.array(targetQuat)
-            rot_diff = 2*np.arccos(np.dot(np_nq, np_tq))
+            dist2, rot_diff = self.distBetweenPoses(targetPos, new_pos, targetQuat, new_quat)
             closeEnough = (dist2 < self.ik_thresh) and (rot_diff < self.ik_rot_thresh)
             c_iter = c_iter + 1
         #print ("Num iter:", c_iter, "threshold:", dist2, rot_diff)
@@ -210,6 +212,13 @@ class PbPlanner(object):
         link_state = p.getLinkState(robotId, endEffectorIndex)
         ee_pos, ee_quat = link_state[4:6]
         return (ee_pos, ee_quat)
+
+    def distBetweenPoses(self, pos1, pos2, quat1, quat2):
+        diff = [pos1[0] - pos2[0], pos1[1] - pos2[1], pos1[2] - pos2[2]]
+        dist2 = (diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2])
+        np_quat1, np_quat2 = np.array(quat1), np.array(quat2)
+        rot_diff = np.abs(2*np.arccos(np.dot(np_quat1, np_quat2)))
+        return dist2, rot_diff
 
     def plan(self, start_q, goal_q, check_validity=True):
 
@@ -233,26 +242,30 @@ class PbPlanner(object):
 
         # setup and solve
         pdef = ompl_base.ProblemDefinition(self.si)
-        pdef.setStartAndGoalStates(start, goal)
         pdef.setOptimizationObjective(ompl_base.PathLengthOptimizationObjective(self.si))
-        optimizingPlanner = ompl_geo.LazyPRMstar(self.si)
-        optimizingPlanner.setProblemDefinition(pdef)
-        optimizingPlanner.setup()
-        solved = optimizingPlanner.solve(self.runTime)
+        pdef.setStartAndGoalStates(start, goal)
 
+        self.optimizingPlanner.setProblemDefinition(pdef)
+        if not self.setup:
+            self.optimizingPlanner.setup()
+            self.setup = True
+        solved = self.optimizingPlanner.solve(self.runTime)
+
+        solution = None
         if solved:
             # Output the length of the path found
             print('{0} found solution of path length {1:.4f} with an optimization ' \
                 'objective value of {2:.4f}'.format( \
-                optimizingPlanner.getName(), \
+                self.optimizingPlanner.getName(), \
                 pdef.getSolutionPath().length(), \
                 pdef.getSolutionPath().cost(pdef.getOptimizationObjective()).value()))
 
-            return pdef.getSolutionPath()
+            solution = pdef.getSolutionPath()
 
         else:
             print("No solution found.")
-            return None
+        self.optimizingPlanner.clearQuery()
+        return solution
 
 def demo():
 

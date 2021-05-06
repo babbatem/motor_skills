@@ -205,7 +205,7 @@ class PRMGenerator(object):
         self.optimizingPlanner.clearQuery()
         return solution
 
-    def savePRM(self, filename="/home/mcorsaro/Desktop/TESTPRM"):
+    def savePRM(self, filename):
         planner_data = ompl_base.PlannerData(self.optimizingPlanner.getSpaceInformation())
         self.optimizingPlanner.getPlannerData(planner_data)
         storage = ompl_base.PlannerDataStorage()
@@ -213,15 +213,18 @@ class PRMGenerator(object):
 
 def generatePRM():
     #np.random.seed(0)
-    save = False
-    prmfile= None if save else "/home/mcorsaro/Desktop/TESTPRM"
-    prm_gen = PRMGenerator(prmfile)
+    prm_path = "/home/mcorsaro/Desktop/"
+
+    prm_file = "TESTPRM"
+    prm_filepath = prm_path + '/' + prm_file
+    save = True
+    prm_gen = PRMGenerator(None if save else prm_filepath)
     for i in range(1):
         s = prm_gen.validityChecker.sample_state()
         g = prm_gen.validityChecker.sample_state()
         result = prm_gen.plan(s, g)
     if save:
-        prm_gen.savePRM()
+        prm_gen.savePRM(prm_filepath)
 
 if __name__ == '__main__':
     generatePRM()

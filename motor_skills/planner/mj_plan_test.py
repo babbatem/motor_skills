@@ -161,7 +161,7 @@ class MujocoPlanExecutor(object):
             self.sim.data.qpos[mj_id]=0.0
 
     def setUpSimAndGenCloudsAndGenCandidates(self, rotation_values_about_approach=[0, math.pi/2]):
-        self.planner = PbPlanner(self.obj)
+        self.planner = PbPlanner(self.obj, "/home/mcorsaro/Desktop/TESTPRM")
         #start = planner.validityChecker.sample_state()
         self.start_joints = [0, np.pi, np.pi, 0, np.pi, 0]
         self.sim.data.qpos[:self.aDOF] = self.start_joints
@@ -209,15 +209,17 @@ class MujocoPlanExecutor(object):
             # Pregrasp and grasp orientation are the same, so just use grasp_or
             pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
+            grasp_orientation_xyzw = grasp_orientation[1:] + [grasp_orientation[0]]
 
-            # set gripper y to grasp pose z, gripper z to grasp pose x
+            '''# set gripper y to grasp pose z, gripper z to grasp pose x
             correcting_rotation = np.zeros((3, 3))
             correcting_rotation[2, 1] = 1
             correcting_rotation[0, 2] = 1
             correcting_rotation[1, 0] = 1
             corrected_grasp_rot_mat = np.matmul(mjpc.quat2Mat(grasp_orientation), correcting_rotation)
-            grasp_orientation = mjpc.mat2Quat(corrected_grasp_rot_mat)
+            grasp_orientation = mjpc.mat2Quat(corrected_grasp_rot_mat)'''
 
+            self.sim.reset()
             self.sim.data.qpos[:self.aDOF] = self.start_joints
             self.sim.data.qpos[self.aDOF:self.tDOF] = self.planner.validityChecker.open_finger_state
             self.sim.step()
@@ -237,13 +239,13 @@ class MujocoPlanExecutor(object):
 
             # compute pre-grasp joint state, check for collision
             self.planner.validityChecker.updateFingerState(self.planner.validityChecker.open_finger_state)
-            pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation, starting_state=self.start_joints)
+            pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation_xyzw, starting_state=self.start_joints)
             pregrasp_invalid_code = self.planner.validityChecker.isInvalid(pregrasp_goal)
             if pregrasp_invalid_code:
                 result_labels.append(pregrasp_invalid_code+1)
             else:
                 # compute grasp pose, check for collision
-                grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=pregrasp_goal)
+                grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation_xyzw, starting_state=pregrasp_goal)
                 grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
                 if grasp_invalid_code:
                     result_labels.append(grasp_invalid_code+3+1)
@@ -253,27 +255,23 @@ class MujocoPlanExecutor(object):
                     ps = time.time()
                     self.executePlan(pregrasp_path)
                     print("Executed pregrasp in", time.time()-ps)
-
-                    result_labels.append(0)
-                    continue
-
-                    '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                    actual_pregrasp_position, actual_pregrasp_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
-                    print(actual_pregrasp_position, actual_pregrasp_orientation)
+                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    current_pos, current_quat_xyzw = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
+                    current_quat = [current_quat_xyzw[-1]] + list(current_quat_xyzw[:-1])
+                    print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
                     pregrasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(pregrasp_position, mjpc.quat2Mat(grasp_orientation)))
-                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes, world_axes, actual_axes])
-                    sys.exit()'''
-                    #print("Pregrasp pose", self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist()))
-                    #print("Pregrasp desired pose", pregrasp_position, grasp_orientation)
+                    actual_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(current_pos, mjpc.quat2Mat(list(current_quat))))
+                    grasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation)))
+                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes, world_axes, actual_axes, grasp_axes])
 
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                    grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation, starting_state=current_joint_vals.tolist())
+                    grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation_xyzw, starting_state=current_joint_vals.tolist())
                     grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
                     if grasp_invalid_code:
                         result_labels.append(grasp_invalid_code+6+1)
                     else:
-                        grasp_axes = mjpc.o3dTFAtPose(grasp_pose)
-                        o3d.visualization.draw_geometries([self.cloud_with_normals, grasp_axes, world_axes])
+                        result_labels.append(0)
+                        #continue
                         current_joint_vals = self.sim.data.qpos[:self.aDOF]
                         grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
                         gs = time.time()
@@ -286,7 +284,7 @@ class MujocoPlanExecutor(object):
                         self.closeFingers()
                         print("Closed fingers in", time.time()-fs)
                         self.planner.validityChecker.updateFingerState(self.sim.data.qpos[self.aDOF:self.tDOF])
-                        sys.exit()
+                        #sys.exit()
             result_time.append(time.time()-start_time)
             c+=1
             if c%100==0:

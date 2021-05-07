@@ -18,7 +18,7 @@ def pbsetup():
     p.setGravity(0,0,-10)
     p.loadURDF(URDFPATH, useFixedBase=True)
     p.loadURDF("plane.urdf", [0, 0, 0]) # This is also in URDF
-    
+
     p.loadURDF(DOORPATH, [0.0, 0.5, 0.44], useFixedBase=True) # note: this is hardcoded, pulled from URDF
     return
 
@@ -36,6 +36,8 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
         self.otherIds = []
         self.otherObj_states = {} # maps Uid to reset states
         self.otherObj_dofs = {} # maps Uid to joint indices to be reset
+
+        self.checking_other_ids = True
         if door_uid is not None:
             self.otherIds.append(door_uid)
             self.otherObj_states[door_uid] = [0,0]
@@ -80,8 +82,9 @@ class pbValidityChecker(ompl_base.StateValidityChecker):
         self.resetScene()
 
         p.stepSimulation()
+        other_ids_to_check = self.otherIds if self.checking_other_ids else []
         return (
-                self.detect_collisions(self.otherIds) and \
+                self.detect_collisions(other_ids_to_check) and \
                 self.check_plane_collision() and \
                 self.check_joint_limits(state)
                )

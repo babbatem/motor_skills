@@ -1,5 +1,5 @@
 import numpy as np
-import time
+import datetime
 import copy
 import math
 import time
@@ -18,6 +18,13 @@ from mujoco_py import cymj
 from mujoco_py import load_model_from_path, MjSim, MjViewer
 
 import open3d as o3d
+
+# mujoco to pybullet
+def wxyz2xyzw(wxyz):
+    return wxyz[1:] + [wxyz[0]]
+# pybullet to mujoco
+def xyzw2wxyz(xyzw):
+    return [xyzw[-1]] + list(xyzw[:-1])
 
 class MujocoPlanExecutor(object):
     def __init__(self, obj, visualize=True):
@@ -181,75 +188,51 @@ class MujocoPlanExecutor(object):
 
         print("Generated", len(self.grasp_poses), "grasp poses.")
 
-    def generateData(self):
+    def executeGrasp(self, sampled_pose):
 
-        self.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
+        start_time = time.time()
 
-        world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
-        result_labels = []
-        result_time = []
-        c = 0
-        batch_start_time = time.time()
-        print("Now attempting", len(self.grasp_poses), "grasp poses.")
-        pregrasp_dist = 0.15
-        dist_from_point_to_ee_link = 0.16
-        # The arm should be straight up
-        '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
-        initial_position, initial_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
-        initial_position, initial_orientation = list(initial_position), list(initial_orientation)
-        initial_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(initial_position, mjpc.quat2Mat(initial_orientation)))
-        o3d.visualization.draw_geometries([self.cloud_with_normals, world_axes, initial_axes])
-        print("Initial pose", initial_position, initial_orientation)'''
-        # y is approach, z is closing (2 to 1), x is negative x (left, looking towards door)
-        for grasp_pose in self.grasp_poses:
-            start_time = time.time()
+        error_code = None
 
-            pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, dist_from_point_to_ee_link + pregrasp_dist)
-            grasp_pose = gpg.translateFrameNegativeZ(grasp_pose, dist_from_point_to_ee_link)
-            # Pregrasp and grasp orientation are the same, so just use grasp_or
-            pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
-            grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
-            grasp_orientation_xyzw = grasp_orientation[1:] + [grasp_orientation[0]]
+        grasp_pose = copy.deepcopy(sampled_pose)
+        pregrasp_pose = gpg.translateFrameNegativeZ(grasp_pose, self.dist_from_point_to_ee_link + self.pregrasp_dist)
+        grasp_pose = gpg.translateFrameNegativeZ(grasp_pose, self.dist_from_point_to_ee_link)
+        # Pregrasp and grasp orientation are the same, so just use grasp_or
+        pregrasp_position, _ = mjpc.mat2PosQuat(pregrasp_pose)
+        grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
 
-            '''# set gripper y to grasp pose z, gripper z to grasp pose x
-            correcting_rotation = np.zeros((3, 3))
-            correcting_rotation[2, 1] = 1
-            correcting_rotation[0, 2] = 1
-            correcting_rotation[1, 0] = 1
-            corrected_grasp_rot_mat = np.matmul(mjpc.quat2Mat(grasp_orientation), correcting_rotation)
-            grasp_orientation = mjpc.mat2Quat(corrected_grasp_rot_mat)'''
+        open_grasp_goal_pos, open_grasp_goal_quat = mjpc.mat2PosQuat(np.matmul(self.handle_transform, grasp_pose))
 
-            self.sim.reset()
-            self.sim.data.qpos[:self.aDOF] = self.start_joints
-            self.sim.data.qpos[self.aDOF:self.tDOF] = self.planner.validityChecker.open_finger_state
-            self.sim.step()
+        # TODO(mcorsaro): reset pybullet
+        self.sim.reset()
+        self.sim.data.qpos[:self.aDOF] = self.start_joints
+        self.sim.data.qpos[self.aDOF:self.tDOF] = self.planner.validityChecker.open_finger_state
+        self.sim.step()
 
-            ##############################################################
-            '''
-            grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation)#, starting_state=pregrasp_goal)
-            self.planner.validityChecker.isValid(grasp_goal)
-            self.sim.data.qpos[:6] = grasp_goal[:6]
-            self.sim.step()
-            o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
-            while True:
-                self.mj_render()
-            print(grasp_goal)
-            '''
-            ################################################################
-
-            # compute pre-grasp joint state, check for collision
-            self.planner.validityChecker.updateFingerState(self.planner.validityChecker.open_finger_state)
-            pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, grasp_orientation_xyzw, starting_state=self.start_joints)
-            pregrasp_invalid_code = self.planner.validityChecker.isInvalid(pregrasp_goal)
-            if pregrasp_invalid_code:
-                result_labels.append(pregrasp_invalid_code+1)
+        # compute pre-grasp joint state, check for collision
+        self.planner.validityChecker.updateFingerState(self.planner.validityChecker.open_finger_state)
+        pregrasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, pregrasp_position, wxyz2xyzw(grasp_orientation), starting_state=self.start_joints)
+        pregrasp_invalid_code = self.planner.validityChecker.isInvalid(pregrasp_goal)
+        if pregrasp_invalid_code:
+            error_code = pregrasp_invalid_code
+        else:
+            # compute grasp pose, check for collision
+            grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, wxyz2xyzw(grasp_orientation), starting_state=pregrasp_goal)
+            grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
+            if grasp_invalid_code:
+                error_code = grasp_invalid_code+3
             else:
-                # compute grasp pose, check for collision
-                grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation_xyzw, starting_state=pregrasp_goal)
-                grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
-                if grasp_invalid_code:
-                    result_labels.append(grasp_invalid_code+3+1)
+                # Stop checking for collisions with door
+                self.planner.validityChecker.checking_other_ids = False
+                open_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, open_grasp_goal_pos, wxyz2xyzw(open_grasp_goal_quat), starting_state=grasp_goal)
+                open_invalid_code = self.planner.validityChecker.isInvalid(open_goal)
+                # Checking for collisions with door again
+                self.planner.validityChecker.checking_other_ids = True
+                if open_invalid_code:
+                    error_code = open_invalid_code+6
                 else:
+                    #error_code = 0
+                    #continue
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal, check_validity=False)
                     ps = time.time()
@@ -257,21 +240,15 @@ class MujocoPlanExecutor(object):
                     print("Executed pregrasp in", time.time()-ps)
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     current_pos, current_quat_xyzw = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
-                    current_quat = [current_quat_xyzw[-1]] + list(current_quat_xyzw[:-1])
-                    print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
-                    pregrasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(pregrasp_position, mjpc.quat2Mat(grasp_orientation)))
-                    actual_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(current_pos, mjpc.quat2Mat(list(current_quat))))
-                    grasp_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(grasp_position, mjpc.quat2Mat(grasp_orientation)))
-                    o3d.visualization.draw_geometries([self.cloud_with_normals, pregrasp_axes, world_axes, actual_axes, grasp_axes])
+                    current_quat = xyzw2wxyz(current_quat_xyzw)
+                    #print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
 
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                    grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation_xyzw, starting_state=current_joint_vals.tolist())
+                    grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, wxyz2xyzw(grasp_orientation), starting_state=current_joint_vals.tolist())
                     grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
                     if grasp_invalid_code:
-                        result_labels.append(grasp_invalid_code+6+1)
+                        error_code = grasp_invalid_code+9
                     else:
-                        result_labels.append(0)
-                        #continue
                         current_joint_vals = self.sim.data.qpos[:self.aDOF]
                         grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
                         gs = time.time()
@@ -284,53 +261,81 @@ class MujocoPlanExecutor(object):
                         self.closeFingers()
                         print("Closed fingers in", time.time()-fs)
                         self.planner.validityChecker.updateFingerState(self.sim.data.qpos[self.aDOF:self.tDOF])
-                        #sys.exit()
-            result_time.append(time.time()-start_time)
+                        #TODO(mcorsaro): don't look for collision between fingers and door
+
+                        # Stop checking for collisions with door
+                        self.planner.validityChecker.checking_other_ids = False
+                        open_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, open_grasp_goal_pos, wxyz2xyzw(open_grasp_goal_quat), starting_state=current_joint_vals.tolist())
+                        open_invalid_code = self.planner.validityChecker.isInvalid(open_goal)
+                        if open_invalid_code:
+                            error_code = open_invalid_code+12
+                        else:
+                            current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                            open_path=self.planner.plan(current_joint_vals, open_goal, check_validity=False)
+                            os = time.time()
+                            self.executePlan(open_path)
+                            print("Executed opening in", time.time()-os)
+                            # Checking for collisions with door again
+                            self.planner.validityChecker.checking_other_ids = True
+
+                            error_code = 0
+        return (self.sim.data.qpos[self.tDOF:], error_code, time.time()-start_time)
+
+    def generateData(self):
+
+        self.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
+        fam_gen = grb.Grabstractor(self.cloud_with_normals, self.grasp_poses, obj=self.obj)
+
+        self.world_axes = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        result_error_codes = []
+        result_door_states = []
+        result_time = []
+        c = 0
+        batch_start_time = time.time()
+        print("Now attempting", len(self.grasp_poses), "grasp poses.")
+        self.pregrasp_dist = 0.15
+        self.dist_from_point_to_ee_link = 0.03
+
+        handle_translation = mjpc.posRotMat2Mat([-0.14, -0.348, -0.415], mjpc.quat2Mat([1, 0, 0, 0]))
+        # point centered at handle origin, orientation is 90 degrees past y axis
+        handle_rotation = mjpc.posRotMat2Mat([0, 0, 0], mjpc.quat2Mat([0.7071068, 0, 0.7071068, 0]))
+        self.handle_transform = np.matmul(np.matmul(np.linalg.inv(handle_translation), handle_rotation), handle_translation)
+
+        # The arm should be straight up
+        '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
+        initial_position, initial_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
+        initial_position, initial_orientation = list(initial_position), list(initial_orientation)
+        initial_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(initial_position, mjpc.quat2Mat(initial_orientation)))
+        o3d.visualization.draw_geometries([self.cloud_with_normals, world_axes, initial_axes])
+        print("Initial pose", initial_position, initial_orientation)'''
+        # y is approach, z is closing (2 to 1), x is negative x (left, looking towards door)
+        for grasp_pose in self.grasp_poses[5000:5010]:
+
+            door_state, error_code, runtime = self.executeGrasp(grasp_pose)
+            result_door_states.append(door_state)
+            result_error_codes.append(error_code)
+            result_time.append(runtime)
             c+=1
             if c%100==0:
                 print(c, "in", time.time()-batch_start_time)
                 batch_start_time=time.time()
 
-        #o3d.visualization.draw_geometries([world_axes, self.cloud_with_normals, mjpc.o3dTFAtPose(grasp_pose), mjpc.o3dTFAtPose(pregrasp_pose)])
-        label_types = list(np.unique(result_labels))
-        label_counts = [(l, result_labels.count(l)) for l in label_types]
+        label_types = list(np.unique(result_error_codes))
+        label_counts = [(l, result_error_codes.count(l)) for l in label_types]
         print("Times:", result_time)
         print("Completed attempts for all generated grasp poses:", label_counts)
         for label_type in label_types:
-            indices = np.where(np.array(result_labels) == label_type)[0]
+            indices = np.where(np.array(result_error_codes) == label_type)[0]
             all_times_this_label = [result_time[ind] for ind in indices]
             print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
-        fam_gen = grb.Grabstractor(self.cloud_with_normals, self.grasp_poses, obj=self.obj)
-        fam_gen.visualizeGraspLabels(result_labels)
-        sys.exit()
-        while True:
-            self.mj_render()
+        #fam_gen.visualizeGraspLabels(result_error_codes)
 
-        print("Now planning pre-grasp motion.")
-        pregrasp_path=self.planner.plan(start, pregrasp_goal)
-        _=input('enter to start execution')
-
-        self.executePlan(pregrasp_path)
-
-        grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, grasp_orientation)
-        print("Now planning grasp motion.")
-        current_joint_vals = self.sim.data.qpos[:self.aDOF]
-        grasp_path=self.planner.plan(current_joint_vals, grasp_goal)
-        _=input('enter to start execution')
-        self.executePlan(grasp_path)
-
-        # TODO(mcorsaro): Update finger position in planner after executing grasp
-        self.closeFingers()
-
-        current_joint_vals = self.sim.data.qpos[:self.aDOF]
-        back_result = self.planner.plan(current_joint_vals, start)
-
-        self.mj_render()
-        _=input('enter to start execution')
-        self.executePlan(back_result)
-
-        while True:
-            self.mj_render()
+        result_file = "/home/mcorsaro/grabstraction_results/trial_results_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '.txt'
+        rf = open(result_file, "w")
+        for i in range(len(self.grasp_poses)):
+            gp, go = mjpc.mat2PosQuat(self.grasp_poses[i])
+            rf.write(str(result_error_codes[i]) + ' ' + str(result_door_states[i].tolist()) + ' ' + str(gp) + ' ' + str(go) + '\n')
+        rf.close()
 
 if __name__ == '__main__':
     obj = 'door'

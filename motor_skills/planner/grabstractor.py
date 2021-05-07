@@ -213,7 +213,8 @@ class Grabstractor(object):
         cloud_color = np.empty((labeled_cloud_points.shape))
         unique_colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (255, 0, 255), (255, 128, 128), (128, 128, 128), (128, 0, 0), (255, 128, 0)]
         for point_i in range(labeled_cloud_points.shape[0]):
-            cloud_color[point_i] = unique_colors[label_list[point_i]]
+            color_id = label_list[point_i] if point_i < len(unique_colors) else len(unique_colors)-1
+            cloud_color[point_i] = unique_colors[color_id]
         labeled_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
         #o3d.visualization.draw_geometries([labeled_cloud])
         self.saveO3DScreenshot(file_dir, 'grasp_labels.jpg', labeled_cloud)

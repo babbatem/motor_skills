@@ -230,9 +230,9 @@ class MujocoPlanExecutor(object):
                 self.planner.validityChecker.checking_other_ids = True
                 if open_invalid_code:
                     error_code = open_invalid_code+6
+                '''elif True:
+                    error_code = 0'''
                 else:
-                    #error_code = 0
-                    #continue
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal, check_validity=False)
                     ps = time.time()
@@ -294,7 +294,7 @@ class MujocoPlanExecutor(object):
         batch_start_time = time.time()
         print("Now attempting", len(self.grasp_poses), "grasp poses.")
         self.pregrasp_dist = 0.15
-        self.dist_from_point_to_ee_link = 0.03
+        self.dist_from_point_to_ee_link = 0.01
 
         handle_translation = mjpc.posRotMat2Mat([-0.14, -0.348, -0.415], mjpc.quat2Mat([1, 0, 0, 0]))
         # point centered at handle origin, orientation is 90 degrees past y axis
@@ -309,7 +309,7 @@ class MujocoPlanExecutor(object):
         o3d.visualization.draw_geometries([self.cloud_with_normals, world_axes, initial_axes])
         print("Initial pose", initial_position, initial_orientation)'''
         # y is approach, z is closing (2 to 1), x is negative x (left, looking towards door)
-        for grasp_pose in self.grasp_poses[5000:5010]:
+        for grasp_pose in self.grasp_poses:
 
             door_state, error_code, runtime = self.executeGrasp(grasp_pose)
             result_door_states.append(door_state)
@@ -328,7 +328,7 @@ class MujocoPlanExecutor(object):
             indices = np.where(np.array(result_error_codes) == label_type)[0]
             all_times_this_label = [result_time[ind] for ind in indices]
             print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
-        #fam_gen.visualizeGraspLabels(result_error_codes)
+        fam_gen.visualizeGraspLabels(result_error_codes)
 
         result_file = "/home/mcorsaro/grabstraction_results/trial_results_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '.txt'
         rf = open(result_file, "w")

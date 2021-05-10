@@ -90,28 +90,32 @@ class MujocoPlanExecutor(object):
             self.viewer.render()
 
     def executePlan(self, plan):
-        plan.interpolate(200)
-        H = plan.getStateCount()
-        for t in range(H):
-            state_t = plan.getState(t)
-            target_q = []
-            target_qd = []
-            for i in range(self.aDOF):
-                target_q.append(state_t[i])
-                target_qd.append(0.0)
+        try:
+            plan.interpolate(200)
+            H = plan.getStateCount()
+            for t in range(H):
+                state_t = plan.getState(t)
+                target_q = []
+                target_qd = []
+                for i in range(self.aDOF):
+                    target_q.append(state_t[i])
+                    target_qd.append(0.0)
 
-            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*300)
-            self.sim.data.ctrl[:self.aDOF]=torques
-            self.sim.step()
-            self.mj_render()
-            time.sleep(0.01)
+                torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*300)
+                self.sim.data.ctrl[:self.aDOF]=torques
+                self.sim.step()
+                self.mj_render()
+                time.sleep(0.01)
 
-        # Make sure it reaches the goal
-        for t in range(200):
-            torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*100)
-            self.sim.data.ctrl[:self.aDOF]=torques
-            self.sim.step()
-            self.mj_render()
+            # Make sure it reaches the goal
+            for t in range(200):
+                torques=mjc.pd(None, target_qd, target_q, self.sim, ndof=self.aDOF, kp=np.eye(self.aDOF)*100)
+                self.sim.data.ctrl[:self.aDOF]=torques
+                self.sim.step()
+                self.mj_render()
+            return True
+        except:
+            return False
 
     # https://github.com/babbatem/motor_skills/blob/impedance/motor_skills/cip/MjGraspHead.py
     def closeFingers(self):
@@ -208,6 +212,7 @@ class MujocoPlanExecutor(object):
         self.sim.data.qpos[:self.aDOF] = self.start_joints
         self.sim.data.qpos[self.aDOF:self.tDOF] = self.planner.validityChecker.open_finger_state
         self.sim.step()
+        self.planner.validityChecker.checking_other_ids = True
 
         # compute pre-grasp joint state, check for collision
         self.planner.validityChecker.updateFingerState(self.planner.validityChecker.open_finger_state)
@@ -230,55 +235,63 @@ class MujocoPlanExecutor(object):
                 self.planner.validityChecker.checking_other_ids = True
                 if open_invalid_code:
                     error_code = open_invalid_code+6
-                '''elif True:
-                    error_code = 0'''
+                #elif True:
+                #    error_code = 0
                 else:
                     current_joint_vals = self.sim.data.qpos[:self.aDOF]
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal, check_validity=False)
                     ps = time.time()
-                    self.executePlan(pregrasp_path)
-                    print("Executed pregrasp in", time.time()-ps)
-                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                    current_pos, current_quat_xyzw = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
-                    current_quat = xyzw2wxyz(current_quat_xyzw)
-                    #print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
-
-                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                    grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, wxyz2xyzw(grasp_orientation), starting_state=current_joint_vals.tolist())
-                    grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
-                    if grasp_invalid_code:
-                        error_code = grasp_invalid_code+9
+                    if not self.executePlan(pregrasp_path):
+                        error_code = 9
                     else:
+                        print("Executed pregrasp in", time.time()-ps)
                         current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                        grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
-                        gs = time.time()
-                        self.executePlan(grasp_path)
-                        print("Executed grasp in", time.time()-gs)
-                        #current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                        #print("Grasp pose", self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist()))
-                        #print("Grasp desired pose", grasp_position, grasp_orientation)
-                        fs = time.time()
-                        self.closeFingers()
-                        print("Closed fingers in", time.time()-fs)
-                        self.planner.validityChecker.updateFingerState(self.sim.data.qpos[self.aDOF:self.tDOF])
-                        #TODO(mcorsaro): don't look for collision between fingers and door
+                        current_pos, current_quat_xyzw = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
+                        current_quat = xyzw2wxyz(current_quat_xyzw)
+                        #print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
 
-                        # Stop checking for collisions with door
-                        self.planner.validityChecker.checking_other_ids = False
-                        open_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, open_grasp_goal_pos, wxyz2xyzw(open_grasp_goal_quat), starting_state=current_joint_vals.tolist())
-                        open_invalid_code = self.planner.validityChecker.isInvalid(open_goal)
-                        if open_invalid_code:
-                            error_code = open_invalid_code+12
+                        current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                        grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, wxyz2xyzw(grasp_orientation), starting_state=current_joint_vals.tolist())
+                        grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
+                        if grasp_invalid_code:
+                            error_code = grasp_invalid_code+10
                         else:
                             current_joint_vals = self.sim.data.qpos[:self.aDOF]
-                            open_path=self.planner.plan(current_joint_vals, open_goal, check_validity=False)
-                            os = time.time()
-                            self.executePlan(open_path)
-                            print("Executed opening in", time.time()-os)
-                            # Checking for collisions with door again
-                            self.planner.validityChecker.checking_other_ids = True
+                            grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
+                            gs = time.time()
+                            if not self.executePlan(grasp_path):
+                                error_code = 13
+                            else:
+                                print("Executed grasp in", time.time()-gs)
+                                #current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                                #print("Grasp pose", self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist()))
+                                #print("Grasp desired pose", grasp_position, grasp_orientation)
+                                fs = time.time()
+                                self.closeFingers()
+                                print("Closed fingers in", time.time()-fs)
+                                self.planner.validityChecker.updateFingerState(self.sim.data.qpos[self.aDOF:self.tDOF])
+                                #TODO(mcorsaro): don't look for collision between fingers and door
 
-                            error_code = 0
+                                # Stop checking for collisions with door
+                                self.planner.validityChecker.checking_other_ids = False
+                                open_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, open_grasp_goal_pos, wxyz2xyzw(open_grasp_goal_quat), starting_state=current_joint_vals.tolist())
+                                open_invalid_code = self.planner.validityChecker.isInvalid(open_goal)
+                                if open_invalid_code:
+                                    error_code = open_invalid_code+14
+                                    self.planner.validityChecker.checking_other_ids = True
+                                else:
+                                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                                    open_path=self.planner.plan(current_joint_vals, open_goal, check_validity=False)
+                                    os = time.time()
+                                    if not self.executePlan(open_path):
+                                        error_code = 17
+                                        self.planner.validityChecker.checking_other_ids = True
+                                    else:
+                                        print("Executed opening in", time.time()-os)
+                                        # Checking for collisions with door again
+                                        self.planner.validityChecker.checking_other_ids = True
+
+                                        error_code = 0
         return (self.sim.data.qpos[self.tDOF:], error_code, time.time()-start_time)
 
     def generateData(self):

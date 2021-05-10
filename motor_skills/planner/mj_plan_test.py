@@ -171,8 +171,8 @@ class MujocoPlanExecutor(object):
         for mj_id in self.door_dofs:
             self.sim.data.qpos[mj_id]=0.0
 
-    def setUpSimAndGenCloudsAndGenCandidates(self, rotation_values_about_approach=[0, math.pi/2]):
-        self.planner = PbPlanner(self.obj, "/home/mcorsaro/Desktop/TESTPRM")
+    def setUpSimAndGenClouds(self, prm_file="/home/mcorsaro/Desktop/TESTPRM"):
+        self.planner = PbPlanner(self.obj, prm_file)
         #start = planner.validityChecker.sample_state()
         self.start_joints = [0, np.pi, np.pi, 0, np.pi, 0]
         self.sim.data.qpos[:self.aDOF] = self.start_joints
@@ -183,6 +183,9 @@ class MujocoPlanExecutor(object):
         self.planner.validityChecker.current_finger_state = self.sim.data.qpos[self.aDOF:self.tDOF]
 
         self.cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
+
+    def setUpSimAndGenCloudsAndGenCandidates(self, rotation_values_about_approach=[0, math.pi/2], prm_file="/home/mcorsaro/Desktop/TESTPRM"):
+        self.setUpSimAndGenClouds(prm_file)
         num_points = np.asarray(self.cloud_with_normals.points).shape[0]
         pose_gen = gpg.GraspPoseGenerator(self.cloud_with_normals, rotation_values_about_approach=rotation_values_about_approach)
 
@@ -350,15 +353,43 @@ class MujocoPlanExecutor(object):
             rf.write(str(result_error_codes[i]) + ' ' + str(result_door_states[i].tolist()) + ' ' + str(gp) + ' ' + str(go) + '\n')
         rf.close()
 
+def loadGraspFile(filename, filepath="/home/mcorsaro/grabstraction_results/"):
+    grasp_label_file = filepath + '/' + filename
+    f=open(grasp_label_file, 'r')
+    error_codes, door_states, grasp_poses = [], [], []
+    lines = f.readlines()
+    for line in lines:
+        line = line.replace('[','').replace(']','').replace(',','')
+        split_line = line.split()
+        error_code = int(split_line[0])
+        door_state = [float(val) for val in split_line[1:3]]
+        grasp_pos = [float(val) for val in split_line[3:6]]
+        grasp_quat = [float(val) for val in split_line[6:]]
+        grasp_pose = mjpc.posRotMat2Mat(grasp_pos, mjpc.quat2Mat(grasp_quat))
+        error_codes.append(error_code)
+        door_states.append(door_state)
+        grasp_poses.append(grasp_pose)
+    return error_codes, door_states, grasp_poses
+
 if __name__ == '__main__':
     obj = 'door'
     mjp = MujocoPlanExecutor(obj=obj)
 
-    mjp.generateData()
+    # Generate data
+    #mjp.generateData()
 
-    #mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0])
+    # Generate low-D manifold
+    #mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0], prm_file=None)
     #fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
     #fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=2)
     #fam_gen.visualizationVideoSample()
     #fam_gen.visualizeGraspPoses(vis_every_n=200)
     #fam_gen.visualizationProjectManifold()
+
+    # Learn labels
+    mjp.setUpSimAndGenClouds(prm_file=None)
+    loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn_stateerr.txt")
+    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
+    labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
+    time.sleep(1)
+    fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=labeled_cloud)

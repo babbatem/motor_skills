@@ -196,6 +196,7 @@ class PbPlanner(object):
     def accurateCalculateInverseKinematics(self, robotId, endEffectorIndex, targetPos, targetQuat, starting_state=None):
         if starting_state is not None:
             self.validityChecker.resetRobot(starting_state, velocity=0)
+        # TODO(mcorsaro): reset scene?
         closeEnough = False
         c_iter = 0
         dist2 = 1e30

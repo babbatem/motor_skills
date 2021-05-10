@@ -58,6 +58,7 @@ class Grabstractor(object):
         self.gpg = gpg.GraspPoseGenerator(self.cloud_with_normals, rotation_values_about_approach=[0])
         self.vis_font = font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 33)
         self.obj = obj
+        self.loadGripperMesh()
         if self.obj == "door":
             self.obj_frame = mjpc.posRotMat2Mat([0.185, 0.348, 0.415], mjpc.quat2Mat([0.7071, 0, 0.7071, 0]))
             self.visualization_view_param_file = "/home/mcorsaro/.mujoco/motor_skills/motor_skills/planner/DoorOpen3DCamPose.json"
@@ -192,15 +193,17 @@ class Grabstractor(object):
                         filename = str(dim_to_vary) + ''.join(["_{:.9f}".format(v) for v in sampled_grabstraction]) + ".jpg"
                         self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, sampled_grabstraction)
 
-    def visualizeGraspPoses(self, vis_every_n=1, filepath="/home/mcorsaro/grabstraction_results/"):
+    def visualizeGraspPoses(self, vis_every_n=1, error_codes=None, given_cloud=None, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        cloud_to_vis = self.cloud_with_normals if given_cloud is None else given_cloud
         os.mkdir(file_dir)
         grabstraction_dir = file_dir + '/0/'
         os.mkdir(grabstraction_dir)
         for i, grasp_pose in enumerate(self.grasp_poses):
             if i%vis_every_n==0:
-                filename = '0' + ''.join(["_{:.9f}".format(v) for v in grasp_pose[:3, 3]]) + ".jpg"
-                self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, grasp_pose[:3, 3])
+                if error_codes is None or error_codes[i] == 0:
+                    filename = '0' + ''.join(["_{:.9f}".format(v) for v in grasp_pose[:3, 3]]) + ".jpg"
+                    self.saveO3DScreenshot(grabstraction_dir, filename, self.cloud_with_normals, grasp_pose, grasp_pose[:3, 3])
 
     def visualizeGraspLabels(self, label_list, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
@@ -213,11 +216,12 @@ class Grabstractor(object):
         cloud_color = np.empty((labeled_cloud_points.shape))
         unique_colors = [(0, 0, 255), (255, 0, 0), (0, 255, 0), (255, 255, 0), (255, 0, 255), (255, 128, 128), (128, 128, 128), (128, 0, 0), (255, 128, 0)]
         for point_i in range(labeled_cloud_points.shape[0]):
-            color_id = label_list[point_i] if point_i < len(unique_colors) else len(unique_colors)-1
+            color_id = label_list[point_i] if label_list[point_i] < len(unique_colors) else len(unique_colors)-1
             cloud_color[point_i] = unique_colors[color_id]
         labeled_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
         #o3d.visualization.draw_geometries([labeled_cloud])
         self.saveO3DScreenshot(file_dir, 'grasp_labels.jpg', labeled_cloud)
+        return labeled_cloud
 
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
@@ -313,7 +317,6 @@ class Grabstractor(object):
 
     def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
 
-        self.loadGripperMesh()
         # TODO(mcorsaro): choose manually per grasp family
         self.embedding_dim=embedding_dim
 

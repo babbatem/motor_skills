@@ -179,8 +179,8 @@ class MujocoPlanExecutor(object):
         self.sim.step()
         self.mj_render()
 
-        self.planner.validityChecker.open_finger_state = self.sim.data.qpos[self.aDOF:self.tDOF]
-        self.planner.validityChecker.current_finger_state = self.sim.data.qpos[self.aDOF:self.tDOF]
+        self.planner.validityChecker.open_finger_state = copy.deepcopy(self.sim.data.qpos[self.aDOF:self.tDOF])
+        self.planner.validityChecker.current_finger_state = copy.deepcopy(self.sim.data.qpos[self.aDOF:self.tDOF])
 
         self.cloud_with_normals = self.pc_gen.generateCroppedPointCloud()
 
@@ -241,38 +241,38 @@ class MujocoPlanExecutor(object):
                 #elif True:
                 #    error_code = 0
                 else:
-                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                    current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                     pregrasp_path=self.planner.plan(current_joint_vals, pregrasp_goal, check_validity=False)
                     ps = time.time()
                     if not self.executePlan(pregrasp_path):
                         error_code = 9
                     else:
                         print("Executed pregrasp in", time.time()-ps)
-                        current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                        current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                         current_pos, current_quat_xyzw = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
                         current_quat = xyzw2wxyz(current_quat_xyzw)
                         #print("Error after execution:", self.planner.distBetweenPoses(current_pos, pregrasp_position, current_quat, grasp_orientation))
 
-                        current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                        current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                         grasp_goal = self.planner.accurateCalculateInverseKinematics(0, self.aDOF, grasp_position, wxyz2xyzw(grasp_orientation), starting_state=current_joint_vals.tolist())
                         grasp_invalid_code = self.planner.validityChecker.isInvalid(grasp_goal)
                         if grasp_invalid_code:
                             error_code = grasp_invalid_code+10
                         else:
-                            current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                            current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                             grasp_path=self.planner.plan(current_joint_vals, grasp_goal, check_validity=False)
                             gs = time.time()
                             if not self.executePlan(grasp_path):
                                 error_code = 13
                             else:
                                 print("Executed grasp in", time.time()-gs)
-                                #current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                                #current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                                 #print("Grasp pose", self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist()))
                                 #print("Grasp desired pose", grasp_position, grasp_orientation)
                                 fs = time.time()
                                 self.closeFingers()
                                 print("Closed fingers in", time.time()-fs)
-                                self.planner.validityChecker.updateFingerState(self.sim.data.qpos[self.aDOF:self.tDOF])
+                                self.planner.validityChecker.updateFingerState(copy.deepcopy(self.sim.data.qpos[self.aDOF:self.tDOF]))
                                 #TODO(mcorsaro): don't look for collision between fingers and door
 
                                 # Stop checking for collisions with door
@@ -283,7 +283,7 @@ class MujocoPlanExecutor(object):
                                     error_code = open_invalid_code+14
                                     self.planner.validityChecker.checking_other_ids = True
                                 else:
-                                    current_joint_vals = self.sim.data.qpos[:self.aDOF]
+                                    current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
                                     open_path=self.planner.plan(current_joint_vals, open_goal, check_validity=False)
                                     os = time.time()
                                     if not self.executePlan(open_path):
@@ -293,9 +293,8 @@ class MujocoPlanExecutor(object):
                                         print("Executed opening in", time.time()-os)
                                         # Checking for collisions with door again
                                         self.planner.validityChecker.checking_other_ids = True
-
                                         error_code = 0
-        return (self.sim.data.qpos[self.tDOF:], error_code, time.time()-start_time)
+        return (copy.deepcopy(self.sim.data.qpos[self.tDOF:]), error_code, time.time()-start_time)
 
     def generateData(self):
 
@@ -318,7 +317,7 @@ class MujocoPlanExecutor(object):
         self.handle_transform = np.matmul(np.matmul(np.linalg.inv(handle_translation), handle_rotation), handle_translation)
 
         # The arm should be straight up
-        '''current_joint_vals = self.sim.data.qpos[:self.aDOF]
+        '''current_joint_vals = copy.deepcopy(self.sim.data.qpos[:self.aDOF])
         initial_position, initial_orientation = self.planner.calculateForwardKinematics(0, self.aDOF, current_joint_vals.tolist())
         initial_position, initial_orientation = list(initial_position), list(initial_orientation)
         initial_axes = mjpc.o3dTFAtPose(mjpc.posRotMat2Mat(initial_position, mjpc.quat2Mat(initial_orientation)))
@@ -344,13 +343,13 @@ class MujocoPlanExecutor(object):
             indices = np.where(np.array(result_error_codes) == label_type)[0]
             all_times_this_label = [result_time[ind] for ind in indices]
             print("Average, min, max time for label", label_type, sum(all_times_this_label)/len(all_times_this_label), min(all_times_this_label), max(all_times_this_label))
-        fam_gen.visualizeGraspLabels(result_error_codes)
 
         result_file = "/home/mcorsaro/grabstraction_results/trial_results_" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '.txt'
         rf = open(result_file, "w")
         for i in range(len(self.grasp_poses)):
             gp, go = mjpc.mat2PosQuat(self.grasp_poses[i])
             rf.write(str(result_error_codes[i]) + ' ' + str(result_door_states[i].tolist()) + ' ' + str(gp) + ' ' + str(go) + '\n')
+        fam_gen.visualizeGraspLabels(result_error_codes)
         rf.close()
 
 def loadGraspFile(filename, filepath="/home/mcorsaro/grabstraction_results/"):
@@ -376,20 +375,24 @@ if __name__ == '__main__':
     mjp = MujocoPlanExecutor(obj=obj)
 
     # Generate data
-    #mjp.generateData()
+    mjp.generateData()
 
     # Generate low-D manifold
-    #mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0], prm_file=None)
-    #fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
-    #fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=2)
-    #fam_gen.visualizationVideoSample()
+    '''
+    mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0], prm_file=None)
+    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
+    fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=2)
+    fam_gen.visualizationVideoSample()
     #fam_gen.visualizeGraspPoses(vis_every_n=200)
-    #fam_gen.visualizationProjectManifold()
+    fam_gen.visualizationProjectManifold()
+    '''
 
     # Learn labels
+    '''
     mjp.setUpSimAndGenClouds(prm_file=None)
     loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn_stateerr.txt")
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
     labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
-    time.sleep(1)
-    fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=labeled_cloud)
+    #time.sleep(1)
+    #fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=labeled_cloud)
+    '''

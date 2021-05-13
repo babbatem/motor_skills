@@ -408,9 +408,30 @@ if __name__ == '__main__':
     loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn.txt")
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
     labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
+
     fam_gen.generateGraspSpace()
     grasp_data = fam_gen.grasp_family_spaces[0][indices, :]
     #fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
     #color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
     #time.sleep(1)
     #fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=color_labeled_cloud)
+
+    from sklearn.utils import shuffle as skshuffle
+
+    grasp_data, labels = skshuffle(grasp_data, labels)
+
+    cutoff = int(len(grasp_data)*.8)
+
+    td, tl = grasp_data[:cutoff], labels[:cutoff]
+    vd, vl = grasp_data[cutoff:], labels[cutoff:]
+
+    print("Training with", td.shape, "\nTesting with", vd.shape)
+
+    from sklearn import svm
+    clf = svm.SVC()
+    clf.fit(td, tl)
+
+    pred_vl = clf.predict(vd)
+
+    import sklearn.metrics
+    print("Test accuracy", sklearn.metrics.accuracy_score(vl, pred_vl))

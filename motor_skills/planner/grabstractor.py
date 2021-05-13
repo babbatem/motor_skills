@@ -223,6 +223,32 @@ class Grabstractor(object):
         self.saveO3DScreenshot(file_dir, 'grasp_labels.jpg', labeled_cloud)
         return labeled_cloud
 
+    def visualizeGraspLabelsWithErrorCodes(self, label_list, error_codes, labeled_indices, filepath="/home/mcorsaro/grabstraction_results/"):
+        file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
+        os.mkdir(file_dir)
+        labeled_cloud = copy.deepcopy(self.cloud_with_normals)
+        labeled_cloud_points = np.asarray(labeled_cloud.points)
+
+        cloud_color = np.empty((labeled_cloud_points.shape))
+        unique_colors = [(255, 0, 0), (0, 255, 0),(0, 0, 255)]
+        labeled_index = 0
+        for point_i in range(labeled_cloud_points.shape[0]):
+            if point_i in labeled_indices:
+                cloud_color[point_i] = unique_colors[label_list[labeled_index]]
+                if error_codes[point_i] != 0:
+                    print("Error code weirdness, this shouldn't happen.", point_i, labeled_index, error_codes[point_i])
+                    sys.exit()
+                labeled_index += 1
+            else:
+                cloud_color[point_i] = unique_colors[2]
+                if error_codes[point_i] == 0:
+                    print("Error code weirdness w/ non, this shouldn't happen.", point_i, labeled_index, error_codes[point_i])
+                    sys.exit()
+        labeled_cloud.colors = o3d.utility.Vector3dVector(cloud_color)
+        #o3d.visualization.draw_geometries([labeled_cloud])
+        self.saveO3DScreenshot(file_dir, 'grasp_labels.jpg', labeled_cloud)
+        return labeled_cloud
+
     def visualizationProjectManifold(self, filepath="/home/mcorsaro/grabstraction_results/"):
         file_dir= filepath + '/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S')
         os.mkdir(file_dir)
@@ -315,14 +341,7 @@ class Grabstractor(object):
             return grasp_family_space_indices
 
 
-    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
-
-        # TODO(mcorsaro): choose manually per grasp family
-        self.embedding_dim=embedding_dim
-
-        #TODO(mcorsaro): grasp_poses, cloud_with_normals, and original_full_space should be condensed into one variable
-        # right now, we assume same size, I think
-
+    def generateGraspSpace(self):
         # use quaternion as placeholder for rotation, but they're not continuous.. see https://arxiv.org/pdf/1812.07035.pdf
         grasp_pose_space = np.empty((len(self.grasp_poses), 7))
         normals = np.asarray(self.cloud_with_normals.normals)
@@ -334,10 +353,20 @@ class Grabstractor(object):
             grasp_pose_space[i] = grasp_position + grasp_orientation
         #self.original_space = self.original_space[:, :3]
 
-        original_full_space = point_normal_space#grasp_pose_space
+        original_full_space = grasp_pose_space
         # after clustering
         self.grasp_family_indices = self.clusterGraspsIntoFamilyIndices(original_full_space)
         self.grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]
+
+    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
+
+        # TODO(mcorsaro): choose manually per grasp family
+        self.embedding_dim=embedding_dim
+
+        #TODO(mcorsaro): grasp_poses, cloud_with_normals, and original_full_space should be condensed into one variable
+        # right now, we assume same size, I think
+
+        self.generateGraspSpace()
 
         if compression_alg=="isomap":
             # Isomap isn't invertible.. https://openreview.net/forum?id=iox4AjpZ15
@@ -349,7 +378,7 @@ class Grabstractor(object):
             self.grabstracted_inputs = [self.embeddings[i].fit_transform(grasp_family_space) for i, grasp_family_space in enumerate(self.grasp_family_spaces)]
 
         elif compression_alg=="autoencoder":
-            self.embeddings = [Autoencoder(original_full_space.shape[1], self.embedding_dim) for grasp_families in self.grasp_family_spaces]
+            self.embeddings = [Autoencoder(grasp_families.shape[1], self.embedding_dim) for grasp_families in self.grasp_family_spaces]
             self.grabstracted_inputs = []
             for i, autoencoder in enumerate(self.embeddings):
                 autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())

@@ -370,12 +370,28 @@ def loadGraspFile(filename, filepath="/home/mcorsaro/grabstraction_results/"):
         grasp_poses.append(grasp_pose)
     return error_codes, door_states, grasp_poses
 
+def errorCodesAndDoorStatesToLabels(error_codes, door_states, grasp_poses, handle=True, thresh=0.2):
+    doorstate_array = np.array(door_states)
+    ec0_indices = []
+    for i in range(len(error_codes)):
+        if error_codes[i] == 0:
+            ec0_indices.append(i)
+    doorstate_array_ec0 = doorstate_array[ec0_indices]
+    labels = None
+    if handle:
+        labels = doorstate_array_ec0[:,1] > thresh
+    else:
+        print("Only handle opening verification implemented so far.")
+        sys.exit()
+    #print(np.sum(labels), labels.shape)
+    return labels, ec0_indices
+
 if __name__ == '__main__':
     obj = 'door'
     mjp = MujocoPlanExecutor(obj=obj)
 
     # Generate data
-    mjp.generateData()
+    #mjp.generateData()
 
     # Generate low-D manifold
     '''
@@ -388,11 +404,13 @@ if __name__ == '__main__':
     '''
 
     # Learn labels
-    '''
     mjp.setUpSimAndGenClouds(prm_file=None)
-    loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn_stateerr.txt")
+    loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn.txt")
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
-    labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
+    labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
+    fam_gen.generateGraspSpace()
+    grasp_data = fam_gen.grasp_family_spaces[0][indices, :]
+    #fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
+    #color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
     #time.sleep(1)
-    #fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=labeled_cloud)
-    '''
+    #fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=color_labeled_cloud)

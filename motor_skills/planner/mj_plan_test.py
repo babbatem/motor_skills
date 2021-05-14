@@ -412,7 +412,7 @@ if __name__ == '__main__':
     '''fam_gen.generateGraspSpace()
     grasp_data = fam_gen.grasp_family_spaces[0][indices, :]'''
 
-    fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=3)
+    fam_gen.generateGrabstraction(compression_alg="autoencoder", embedding_dim=3, autoencoder_file=["/home/mcorsaro/grabstraction_results/saved_models/autoencoder_door_0"])
     grasp_data = fam_gen.grabstracted_inputs[0][indices, :]
 
     #fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
@@ -426,7 +426,7 @@ if __name__ == '__main__':
 
     cutoff = int(len(grasp_data)*.8)
 
-    percentage_to_use = 0.0015625#0.003125
+    percentage_to_use = 0.0015625*2**0
     train_cutoff = int(cutoff*percentage_to_use)
 
     td, tl = grasp_data[:train_cutoff], labels[:train_cutoff]

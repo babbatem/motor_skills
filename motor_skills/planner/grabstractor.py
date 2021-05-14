@@ -3,6 +3,7 @@ import datetime
 import math
 import os
 import time
+import types
 
 import itertools
 
@@ -27,6 +28,7 @@ from tensorflow.keras.models import Model
 class Autoencoder(Model):
     def __init__(self, original_dim, latent_dim):
         super(Autoencoder, self).__init__()
+        self.original_dim = original_dim
         self.latent_dim = latent_dim
         self.encoder = tf.keras.Sequential([
             layers.Dense(2*latent_dim, activation='relu'),
@@ -34,13 +36,20 @@ class Autoencoder(Model):
         ])
         self.decoder = tf.keras.Sequential([
             layers.Dense(2*latent_dim, activation='sigmoid'),
-            layers.Dense(original_dim, activation='sigmoid')
+            layers.Dense(self.original_dim, activation='sigmoid')
         ])
 
     def call(self, x):
         encoded = self.encoder(x)
         decoded = self.decoder(encoded)
         return decoded
+
+    def get_config(self):
+        return {"original_dim": self.original_dim, "latent_dim": self.latent_dim}
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
     def transform(self, x):
         encoded = self.encoder(x)
@@ -360,7 +369,7 @@ class Grabstractor(object):
         self.grasp_family_indices = self.clusterGraspsIntoFamilyIndices(original_full_space)
         self.grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]
 
-    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3):
+    def generateGrabstraction(self, compression_alg="pca", embedding_dim=3, autoencoder_file=None, save_autoencoder=False):
 
         # TODO(mcorsaro): choose manually per grasp family
         self.embedding_dim=embedding_dim
@@ -383,10 +392,21 @@ class Grabstractor(object):
             self.embeddings = [Autoencoder(grasp_families.shape[1], self.embedding_dim) for grasp_families in self.grasp_family_spaces]
             self.grabstracted_inputs = []
             for i, autoencoder in enumerate(self.embeddings):
-                autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
-                autoencoder.fit(self.grasp_family_spaces[i], self.grasp_family_spaces[i],
-                    epochs=50,
-                    shuffle=True)
+                if autoencoder_file is None:
+                    autoencoder.compile(optimizer='adam', loss=losses.MeanSquaredError())
+                    autoencoder.fit(self.grasp_family_spaces[i], self.grasp_family_spaces[i],
+                        epochs=100,
+                        shuffle=True)
+                    if save_autoencoder:
+                        autoencoder.save("/home/mcorsaro/grabstraction_results/saved_models/autoencoder_" + self.obj + '_' + str(i))
+                else:
+                    # Option 1: Load with the custom_object argument.
+                    autoencoder = tf.keras.models.load_model(
+                        autoencoder_file[i], custom_objects={"Autoencoder": Autoencoder}
+                    )
+                    autoencoder.transform = types.MethodType(Autoencoder.transform, autoencoder)
+                    autoencoder.inverse_transform = types.MethodType(Autoencoder.inverse_transform, autoencoder)
+                    self.embeddings[i] = autoencoder
                 self.grabstracted_inputs.append(autoencoder.transform(self.grasp_family_spaces[i]))
 
         '''

@@ -426,7 +426,10 @@ if __name__ == '__main__':
 
     cutoff = int(len(grasp_data)*.8)
 
-    td, tl = grasp_data[:cutoff], labels[:cutoff]
+    percentage_to_use = 0.0015625#0.003125
+    train_cutoff = int(cutoff*percentage_to_use)
+
+    td, tl = grasp_data[:train_cutoff], labels[:train_cutoff]
     vd, vl = grasp_data[cutoff:], labels[cutoff:]
 
     print("Training with", td.shape, "\nTesting with", vd.shape)

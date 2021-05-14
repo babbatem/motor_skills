@@ -346,14 +346,16 @@ class Grabstractor(object):
         grasp_pose_space = np.empty((len(self.grasp_poses), 7))
         normals = np.asarray(self.cloud_with_normals.normals)
         point_normal_space = np.empty((len(self.grasp_poses), 6))
+        position_space = np.empty((len(self.grasp_poses), 3))
         for i, grasp_pose in enumerate(self.grasp_poses):
             grasp_position, grasp_orientation = mjpc.mat2PosQuat(grasp_pose)
             normal = (normals[i]).tolist()
             point_normal_space[i] = grasp_position + normal
             grasp_pose_space[i] = grasp_position + grasp_orientation
+            position_space[i] = grasp_position
         #self.original_space = self.original_space[:, :3]
 
-        original_full_space = grasp_pose_space
+        original_full_space = grasp_pose_space#position_space#point_normal_space#
         # after clustering
         self.grasp_family_indices = self.clusterGraspsIntoFamilyIndices(original_full_space)
         self.grasp_family_spaces = [original_full_space[ind_list] for ind_list in self.grasp_family_indices]

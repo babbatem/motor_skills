@@ -409,8 +409,12 @@ if __name__ == '__main__':
     fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
     labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
 
-    fam_gen.generateGraspSpace()
-    grasp_data = fam_gen.grasp_family_spaces[0][indices, :]
+    '''fam_gen.generateGraspSpace()
+    grasp_data = fam_gen.grasp_family_spaces[0][indices, :]'''
+
+    fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=3)
+    grasp_data = fam_gen.grabstracted_inputs[0][indices, :]
+
     #fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
     #color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
     #time.sleep(1)

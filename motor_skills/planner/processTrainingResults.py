@@ -135,5 +135,5 @@ ae_errs.append(np.std(ta))
 
 plt.errorbar(train_sizes[:6], test_accs[:6], yerr=errs[:6], label="Pose")
 plt.errorbar(ae_train_sizes[:6], ae_test_accs[:6], yerr=ae_errs[:6], label="3D Autoencoder")
-plt.savefig("/home/mcorsaro/Desktop/plot_err_cut.jpg")
 plt.legend(loc='lower right')
+plt.savefig("/home/mcorsaro/Desktop/plot_err_cut.jpg")

@@ -389,11 +389,12 @@ def errorCodesAndDoorStatesToLabels(error_codes, door_states, grasp_poses, handl
     #print(np.sum(labels), labels.shape)
     return labels, ec0_indices
 
-def averageOverSeeds(fam_gen, labels, indices, train_percent, num_seeds_to_avg_over=3):
+def averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full', num_seeds_to_avg_over=3):
     this_run_test_accs = []
     this_run_best_params = []
+    train_sizes = None
     for j in range(num_seeds_to_avg_over):
-        clf = tgc.TaskGraspClassifier(fam_gen, labels, indices, percent_train_set_to_use=train_percent)
+        clf = tgc.TaskGraspClassifier(fam_gen, labels, indices, input_feature_size=input_feature_size, percent_train_set_to_use=train_percent)
         # Doesn't work if there's not at least one positive and one negative label, so try 5 times until it's balanced
         single_run_test_accs, single_run_best_params, train_set_size = None, None, None
         for attempt in range(5):
@@ -406,12 +407,11 @@ def averageOverSeeds(fam_gen, labels, indices, train_percent, num_seeds_to_avg_o
         if single_run_test_accs is None:
             print("Failed 5 times in a row with parameters", train_percent)
             sys.exit()
-        if j == 0:
-            train_sizes.append(train_set_size)
+        train_sizes = train_set_size
         this_run_test_accs.append(single_run_test_accs)
         this_run_best_params.append(single_run_best_params)
         print("Achieved", single_run_test_accs, "test accuracy with parameters", single_run_best_params)
-    return this_run_test_accs, this_run_best_params
+    return this_run_test_accs, this_run_best_params, train_sizes
 
 if __name__ == '__main__':
     obj = 'door'
@@ -445,24 +445,38 @@ if __name__ == '__main__':
         test_std_devs = []
         best_params = []
 
-        train_set_size_percentages = [0.006, 0.1]
+        ae_train_sizes = []
+        ae_test_accs = []
+        ae_test_std_devs = []
+        ae_best_params = []
+
+        train_set_size_percentages = [0.01, 0.1]
 
         for train_percent in train_set_size_percentages:
-            this_run_test_accs, this_run_best_params = averageOverSeeds(fam_gen, labels, indices, train_percent)
-
+            this_run_test_accs, this_run_best_params, this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full')
             test_accs.append(sum(this_run_test_accs)/len(this_run_test_accs))
             test_std_devs.append(np.std(this_run_test_accs))
+            train_sizes.append(this_run_train_sizes)
             best_params.append(this_run_best_params)
+
+            ae_this_run_test_accs, ae_this_run_best_params, ae_this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='compressed')
+            ae_test_accs.append(sum(ae_this_run_test_accs)/len(ae_this_run_test_accs))
+            ae_test_std_devs.append(np.std(ae_this_run_test_accs))
+            ae_train_sizes.append(ae_this_run_train_sizes)
+            ae_best_params.append(ae_this_run_best_params)
 
         plot_dir = "/home/mcorsaro/grabstraction_results/" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '/'
         os.mkdir(plot_dir)
 
+        print(train_sizes, test_accs)
         plt.plot(train_sizes, test_accs, label="Pose")
+        plt.plot(ae_train_sizes, ae_test_accs, label="3D Autoencoder")
         plt.legend(loc='lower right')
         plt.savefig(plot_dir + "test_accs.jpg")
         plt.close()
 
         plt.errorbar(train_sizes, test_accs, yerr=test_std_devs, label="Pose")
+        plt.errorbar(ae_train_sizes, ae_test_accs, yerr=ae_test_std_devs, label="3D Autoencoder")
         plt.legend(loc='lower right')
         plt.savefig(plot_dir + "test_accs_err.jpg")
 

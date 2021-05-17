@@ -3,8 +3,10 @@ import datetime
 import copy
 import math
 import time
+import os
 
 from PIL import Image
+import matplotlib.pyplot as plt
 
 import motor_skills
 import motor_skills.core.mj_control as mjc
@@ -387,36 +389,84 @@ def errorCodesAndDoorStatesToLabels(error_codes, door_states, grasp_poses, handl
     #print(np.sum(labels), labels.shape)
     return labels, ec0_indices
 
+def averageOverSeeds(fam_gen, labels, indices, train_percent, num_seeds_to_avg_over=3):
+    this_run_test_accs = []
+    this_run_best_params = []
+    for j in range(num_seeds_to_avg_over):
+        clf = tgc.TaskGraspClassifier(fam_gen, labels, indices, percent_train_set_to_use=train_percent)
+        # Doesn't work if there's not at least one positive and one negative label, so try 5 times until it's balanced
+        single_run_test_accs, single_run_best_params, train_set_size = None, None, None
+        for attempt in range(5):
+            try:
+                single_run_test_accs, single_run_best_params, train_set_size = clf.gridSearch()
+                break
+            except:
+                print("Attempt failed, trying again.")
+                continue
+        if single_run_test_accs is None:
+            print("Failed 5 times in a row with parameters", train_percent)
+            sys.exit()
+        if j == 0:
+            train_sizes.append(train_set_size)
+        this_run_test_accs.append(single_run_test_accs)
+        this_run_best_params.append(single_run_best_params)
+        print("Achieved", single_run_test_accs, "test accuracy with parameters", single_run_best_params)
+    return this_run_test_accs, this_run_best_params
+
 if __name__ == '__main__':
     obj = 'door'
     mjp = MujocoPlanExecutor(obj=obj)
 
-    # Generate data
-    #mjp.generateData()
+    task = 'train_classifier'
 
-    # Generate low-D manifold
-    '''
-    mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0], prm_file=None)
-    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
-    fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=2)
-    fam_gen.visualizationVideoSample()
-    #fam_gen.visualizeGraspPoses(vis_every_n=200)
-    fam_gen.visualizationProjectManifold()
-    '''
+    if task == 'generate_data':
+        # Generate data
+        mjp.generateData()
 
-    # Learn labels
-    mjp.setUpSimAndGenClouds(prm_file=None)
-    loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn.txt")
-    fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
-    # convert error codes (kinematics) and door states to binary labels
-    labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
+    elif task == 'learn_manifold':
+        # Generate low-D manifold
+        mjp.setUpSimAndGenCloudsAndGenCandidates(rotation_values_about_approach=[0], prm_file=None)
+        fam_gen = grb.Grabstractor(mjp.cloud_with_normals, mjp.grasp_poses, obj=obj)
+        fam_gen.generateGrabstraction(compression_alg="pca", embedding_dim=2)
+        fam_gen.visualizationVideoSample()
+        #fam_gen.visualizeGraspPoses(vis_every_n=200)
+        fam_gen.visualizationProjectManifold()
 
-    clf = tgc.TaskGraspClassifier(fam_gen, labels, indices, percent_train_set_to_use=1.0)
-    test_accs, best_params = clf.gridSearch()
+    elif task == 'train_classifier':
+        # Learn labels
+        mjp.setUpSimAndGenClouds(prm_file=None)
+        loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses = loadGraspFile("door_labels_turn.txt")
+        fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
+        # convert error codes (kinematics) and door states to binary labels
+        labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
 
-    print("Achieved", test_accs, "test accuracy with parameters", best_params)
+        train_sizes = []
+        test_accs = []
+        test_std_devs = []
+        best_params = []
 
-    '''fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
-    color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
-    time.sleep(1)
-    fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=color_labeled_cloud)'''
+        train_set_size_percentages = [0.006, 0.1]
+
+        for train_percent in train_set_size_percentages:
+            this_run_test_accs, this_run_best_params = averageOverSeeds(fam_gen, labels, indices, train_percent)
+
+            test_accs.append(sum(this_run_test_accs)/len(this_run_test_accs))
+            test_std_devs.append(np.std(this_run_test_accs))
+            best_params.append(this_run_best_params)
+
+        plot_dir = "/home/mcorsaro/grabstraction_results/" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '/'
+        os.mkdir(plot_dir)
+
+        plt.plot(train_sizes, test_accs, label="Pose")
+        plt.legend(loc='lower right')
+        plt.savefig(plot_dir + "test_accs.jpg")
+        plt.close()
+
+        plt.errorbar(train_sizes, test_accs, yerr=test_std_devs, label="Pose")
+        plt.legend(loc='lower right')
+        plt.savefig(plot_dir + "test_accs_err.jpg")
+
+        '''fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
+        color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
+        time.sleep(1)
+        fam_gen.visualizeGraspPoses(vis_every_n=1, error_codes=loaded_grasp_error_codes, given_cloud=color_labeled_cloud)'''

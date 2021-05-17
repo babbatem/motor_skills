@@ -28,8 +28,8 @@ class TaskGraspClassifier(object):
         self.td, self.tl = grasp_data[:train_cutoff], labels[:train_cutoff]
         self.vd, self.vl = grasp_data[cutoff:], labels[cutoff:]
 
-    def gridSearch(self, C_vals_SVM=[0.1, 1, 5, 25, 50, 75, 100, 150, 500, 1000], \
-            gamma_vals_SVM=[1e-2, 1e-1, 1e0, 1e1, 1e2, 50, 1e3, 150, 200, 500, 1e4, 'scale', 'auto'], poly_degree_SVM=[2, 3, 4, 5], verbose=False):
+    def gridSearch(self, C_vals_SVM=[1e-3, 1e-2, 1e-1, 1, 5, 50, 100, 500, 1000], \
+            gamma_vals_SVM=[1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 50, 1e3, 200, 500, 1e4, 'scale', 'auto'], poly_degree_SVM=[2, 3, 4, 5], verbose=False):
         #https://scikit-learn.org/stable/auto_examples/model_selection/plot_grid_search_digits.html#sphx-glr-auto-examples-model-selection-plot-grid-search-digits-py
         print("Training with", self.td.shape, "\nTesting with", self.vd.shape)
 
@@ -70,7 +70,7 @@ class TaskGraspClassifier(object):
             print(sklearn.metrics.classification_report(self.vl, pred_vl))
             print()
 
-        return sklearn.metrics.accuracy_score(self.vl, pred_vl), clf.best_params_
+        return sklearn.metrics.accuracy_score(self.vl, pred_vl), clf.best_params_, self.td.shape[0]
 
     def trainSVM(self):
         print("Training with", self.td.shape, "\nTesting with", self.vd.shape)

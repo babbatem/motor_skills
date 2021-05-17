@@ -389,7 +389,7 @@ def errorCodesAndDoorStatesToLabels(error_codes, door_states, grasp_poses, handl
     #print(np.sum(labels), labels.shape)
     return labels, ec0_indices
 
-def averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full', num_seeds_to_avg_over=3):
+def averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full', num_seeds_to_avg_over=5):
     this_run_test_accs = []
     this_run_best_params = []
     train_sizes = None
@@ -450,7 +450,7 @@ if __name__ == '__main__':
         ae_test_std_devs = []
         ae_best_params = []
 
-        train_set_size_percentages = [0.01, 0.1]
+        train_set_size_percentages = [0.00625, 0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.]
 
         for train_percent in train_set_size_percentages:
             this_run_test_accs, this_run_best_params, this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full')
@@ -468,7 +468,6 @@ if __name__ == '__main__':
         plot_dir = "/home/mcorsaro/grabstraction_results/" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '/'
         os.mkdir(plot_dir)
 
-        print(train_sizes, test_accs)
         plt.plot(train_sizes, test_accs, label="Pose")
         plt.plot(ae_train_sizes, ae_test_accs, label="3D Autoencoder")
         plt.legend(loc='lower right')
@@ -479,6 +478,19 @@ if __name__ == '__main__':
         plt.errorbar(ae_train_sizes, ae_test_accs, yerr=ae_test_std_devs, label="3D Autoencoder")
         plt.legend(loc='lower right')
         plt.savefig(plot_dir + "test_accs_err.jpg")
+        plt.close()
+
+        plt.plot(train_sizes[:5], test_accs[:5], label="Pose")
+        plt.plot(ae_train_sizes[:5], ae_test_accs[:5], label="3D Autoencoder")
+        plt.legend(loc='lower right')
+        plt.savefig(plot_dir + "test_accs_cut.jpg")
+        plt.close()
+
+        plt.errorbar(train_sizes[:5], test_accs[:5], yerr=test_std_devs[:5], label="Pose")
+        plt.errorbar(ae_train_sizes[:5], ae_test_accs[:5], yerr=ae_test_std_devs[:5], label="3D Autoencoder")
+        plt.legend(loc='lower right')
+        plt.savefig(plot_dir + "test_accs_err_cut.jpg")
+        plt.close()
 
         '''fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
         color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)

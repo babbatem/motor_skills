@@ -411,8 +411,10 @@ if __name__ == '__main__':
     # convert error codes (kinematics) and door states to binary labels
     labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
 
-    clf = tgc.TaskGraspClassifier(fam_gen, labels, indices)
-    clf.gridSearch()
+    clf = tgc.TaskGraspClassifier(fam_gen, labels, indices, percent_train_set_to_use=1.0)
+    test_accs, best_params = clf.gridSearch()
+
+    print("Achieved", test_accs, "test accuracy with parameters", best_params)
 
     '''fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
     color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)

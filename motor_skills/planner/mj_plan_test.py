@@ -389,6 +389,59 @@ def errorCodesAndDoorStatesToLabels(error_codes, door_states, grasp_poses, handl
     #print(np.sum(labels), labels.shape)
     return labels, ec0_indices
 
+def trainAndPlot(fam_gen, labels, indices):
+    train_sizes = []
+    test_accs = []
+    test_std_devs = []
+    best_params = []
+
+    ae_train_sizes = []
+    ae_test_accs = []
+    ae_test_std_devs = []
+    ae_best_params = []
+
+    train_set_size_percentages = [0.00625, 0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.]
+
+    for train_percent in train_set_size_percentages:
+        this_run_test_accs, this_run_best_params, this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full')
+        test_accs.append(sum(this_run_test_accs)/len(this_run_test_accs))
+        test_std_devs.append(np.std(this_run_test_accs))
+        train_sizes.append(this_run_train_sizes)
+        best_params.append(this_run_best_params)
+
+        ae_this_run_test_accs, ae_this_run_best_params, ae_this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='compressed')
+        ae_test_accs.append(sum(ae_this_run_test_accs)/len(ae_this_run_test_accs))
+        ae_test_std_devs.append(np.std(ae_this_run_test_accs))
+        ae_train_sizes.append(ae_this_run_train_sizes)
+        ae_best_params.append(ae_this_run_best_params)
+
+    plot_dir = "/home/mcorsaro/grabstraction_results/" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '/'
+    os.mkdir(plot_dir)
+
+    plt.plot(train_sizes, test_accs, label="Pose")
+    plt.plot(ae_train_sizes, ae_test_accs, label="3D Autoencoder")
+    plt.legend(loc='lower right')
+    plt.savefig(plot_dir + "test_accs.jpg")
+    plt.close()
+
+    plt.errorbar(train_sizes, test_accs, yerr=test_std_devs, label="Pose")
+    plt.errorbar(ae_train_sizes, ae_test_accs, yerr=ae_test_std_devs, label="3D Autoencoder")
+    plt.legend(loc='lower right')
+    plt.savefig(plot_dir + "test_accs_err.jpg")
+    plt.close()
+
+    plt.plot(train_sizes[:5], test_accs[:5], label="Pose")
+    plt.plot(ae_train_sizes[:5], ae_test_accs[:5], label="3D Autoencoder")
+    plt.legend(loc='lower right')
+    plt.savefig(plot_dir + "test_accs_cut.jpg")
+    plt.close()
+
+    plt.errorbar(train_sizes[:5], test_accs[:5], yerr=test_std_devs[:5], label="Pose")
+    plt.errorbar(ae_train_sizes[:5], ae_test_accs[:5], yerr=ae_test_std_devs[:5], label="3D Autoencoder")
+    plt.legend(loc='lower right')
+    plt.savefig(plot_dir + "test_accs_err_cut.jpg")
+    plt.close()
+
 def averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full', num_seeds_to_avg_over=5):
     this_run_test_accs = []
     this_run_best_params = []
@@ -439,58 +492,7 @@ if __name__ == '__main__':
         fam_gen = grb.Grabstractor(mjp.cloud_with_normals, loaded_grasp_poses, obj=obj)
         # convert error codes (kinematics) and door states to binary labels
         labels, indices = errorCodesAndDoorStatesToLabels(loaded_grasp_error_codes, loaded_grasp_door_states, loaded_grasp_poses)
-
-        train_sizes = []
-        test_accs = []
-        test_std_devs = []
-        best_params = []
-
-        ae_train_sizes = []
-        ae_test_accs = []
-        ae_test_std_devs = []
-        ae_best_params = []
-
-        train_set_size_percentages = [0.00625, 0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1.]
-
-        for train_percent in train_set_size_percentages:
-            this_run_test_accs, this_run_best_params, this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='full')
-            test_accs.append(sum(this_run_test_accs)/len(this_run_test_accs))
-            test_std_devs.append(np.std(this_run_test_accs))
-            train_sizes.append(this_run_train_sizes)
-            best_params.append(this_run_best_params)
-
-            ae_this_run_test_accs, ae_this_run_best_params, ae_this_run_train_sizes = averageOverSeeds(fam_gen, labels, indices, train_percent, input_feature_size='compressed')
-            ae_test_accs.append(sum(ae_this_run_test_accs)/len(ae_this_run_test_accs))
-            ae_test_std_devs.append(np.std(ae_this_run_test_accs))
-            ae_train_sizes.append(ae_this_run_train_sizes)
-            ae_best_params.append(ae_this_run_best_params)
-
-        plot_dir = "/home/mcorsaro/grabstraction_results/" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d_%H_%M_%S') + '/'
-        os.mkdir(plot_dir)
-
-        plt.plot(train_sizes, test_accs, label="Pose")
-        plt.plot(ae_train_sizes, ae_test_accs, label="3D Autoencoder")
-        plt.legend(loc='lower right')
-        plt.savefig(plot_dir + "test_accs.jpg")
-        plt.close()
-
-        plt.errorbar(train_sizes, test_accs, yerr=test_std_devs, label="Pose")
-        plt.errorbar(ae_train_sizes, ae_test_accs, yerr=ae_test_std_devs, label="3D Autoencoder")
-        plt.legend(loc='lower right')
-        plt.savefig(plot_dir + "test_accs_err.jpg")
-        plt.close()
-
-        plt.plot(train_sizes[:5], test_accs[:5], label="Pose")
-        plt.plot(ae_train_sizes[:5], ae_test_accs[:5], label="3D Autoencoder")
-        plt.legend(loc='lower right')
-        plt.savefig(plot_dir + "test_accs_cut.jpg")
-        plt.close()
-
-        plt.errorbar(train_sizes[:5], test_accs[:5], yerr=test_std_devs[:5], label="Pose")
-        plt.errorbar(ae_train_sizes[:5], ae_test_accs[:5], yerr=ae_test_std_devs[:5], label="3D Autoencoder")
-        plt.legend(loc='lower right')
-        plt.savefig(plot_dir + "test_accs_err_cut.jpg")
-        plt.close()
+        trainAndPlot(fam_gen, labels, indices)
 
         '''fam_gen.visualizeGraspLabelsWithErrorCodes(labels, loaded_grasp_error_codes, indices)
         color_labeled_cloud = fam_gen.visualizeGraspLabels(loaded_grasp_error_codes)
